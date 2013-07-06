@@ -1816,7 +1816,7 @@ void test16()
 	int i, err;
 	//Allocate memory for the YUV texture input buffer
 	char* yuvbuff = (char*)malloc(inTextureWidth*inTextureHeight*2+PAGE_SIZE);
-	yuvbuff -= ((unsigned int)yuvbuff & (PAGE_SIZE-1));
+	yuvbuff += (PAGE_SIZE - (unsigned int)yuvbuff & (PAGE_SIZE-1));
 	
 	memset(yuvbuff, 0, inTextureWidth*inTextureHeight*2+PAGE_SIZE);
 	peglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
