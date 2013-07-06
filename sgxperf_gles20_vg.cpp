@@ -62,7 +62,7 @@ extern unsigned int _fan256x256_rgb565[];
 
 
 #define MAX_TEST_ID 16 //Max number of available tests
-#define SGX_PERF_VERSION 1.1
+#define SGXPERF_VERSION 1.1
 
 #define _ENABLE_TEST1 /* Fill entire screen with single colour, no objects */
 #define _ENABLE_TEST2 /* Draw a coloured rect filling entire screen */
@@ -85,11 +85,11 @@ extern unsigned int _fan256x256_rgb565[];
 #define _ENABLE_TEST15 /* YUV-RGB converter with PVR2D */
 #define _ENABLE_TEST16 /* YUV EGLIMAGE with TI extensions */
 
-#define SGX_PERF_printf dummy_printf
-#define SGX_PERF_ERR_printf printf
+#define SGXPERF_printf dummy_printf
+#define SGXPERF_ERR_printf printf
 
-#define SGX_PERF_STARTPROFILEUNIT {gettimeofday(&unitStartTime, NULL);}  
-#define SGX_PERF_ENDPROFILEUNIT {gettimeofday(&unitEndTime, NULL);\
+#define SGXPERF_STARTPROFILEUNIT {gettimeofday(&unitStartTime, NULL);}  
+#define SGXPERF_ENDPROFILEUNIT {gettimeofday(&unitEndTime, NULL);\
 	   if(msToSleep > tv_diff(&startTime, &endTime)) \
       usleep((msToSleep - tv_diff(&startTime, &endTime))/1000); }		
 
@@ -157,7 +157,7 @@ bool TestEGLError(const char* pszLocation)
 	EGLint iErr = eglGetError();
 	if (iErr != EGL_SUCCESS)
 	{
-		SGX_PERF_ERR_printf("%s failed (%d).\n", pszLocation, iErr);
+		SGXPERF_ERR_printf("%s failed (%d).\n", pszLocation, iErr);
 		return false;
 	}
 
@@ -209,11 +209,11 @@ void add_texture(int width, int height, void* data, int pixelFormat)
 	if(pixelFormat == SGXPERF_RGB565) textureType = GL_RGB;
 	else if(pixelFormat == SGXPERF_ARGB8888) textureType = GL_RGBA;
 	else if(pixelFormat == SGXPERF_BYTE8) textureType = GL_LUMINANCE;
-	else {SGX_PERF_ERR_printf("%d texture format unsupported\n", pixelFormat); exit(-1);}
+	else {SGXPERF_ERR_printf("%d texture format unsupported\n", pixelFormat); exit(-1);}
 	// load the texture up
 	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-	//SGX_PERF_ERR_printf("\n\nTextureType=%d\n",textureType);
+	//SGXPERF_ERR_printf("\n\nTextureType=%d\n",textureType);
 	glTexImage2D(
 		GL_TEXTURE_2D,
 		0,
@@ -249,7 +249,7 @@ void common_create_native_pixmap(
     (*pNativePixmapPtr)->ePixelFormat = 2;
   else           
   {  
-		SGX_PERF_ERR_printf("Invalid pixmap format type %ld\n", pixmapFormat);
+		SGXPERF_ERR_printf("Invalid pixmap format type %ld\n", pixmapFormat);
 		exit(-1);
   }
     (*pNativePixmapPtr)->eRotation = 0;
@@ -263,14 +263,14 @@ void common_create_native_pixmap(
     (*pNativePixmapPtr)->lAddress = (long) CMEM_alloc((*pNativePixmapPtr)->lSizeInBytes, NULL);
 	if(!(*pNativePixmapPtr)->lAddress)
 	{
-		SGX_PERF_ERR_printf("CMEM_alloc returned NULL\n");
+		SGXPERF_ERR_printf("CMEM_alloc returned NULL\n");
 		exit(-1);
 	}
     //Get the physical page corresponding to the above cmem buffer
     (*pNativePixmapPtr)->pvAddress = CMEM_getPhys((void*)(*pNativePixmapPtr)->lAddress);
-	SGX_PERF_printf("Physical address = %x\n", (*pNativePixmapPtr)->pvAddress);
+	SGXPERF_printf("Physical address = %x\n", (*pNativePixmapPtr)->pvAddress);
 	if((*pNativePixmapPtr)->pvAddress & 0xFFF)
-		SGX_PERF_printf("PVR2DMemWrap may have issues with this non-aligned address!\n");
+		SGXPERF_printf("PVR2DMemWrap may have issues with this non-aligned address!\n");
 #endif
 }
 void common_delete_native_pixmap(
@@ -315,7 +315,7 @@ int common_eglinit(int testID, int surfaceType, NATIVE_PIXMAP_STRUCT** pNativePi
 	int iConfigs;
 	if (!eglChooseConfig(eglDisplay, pi32ConfigAttribs, &eglConfig, 1, &iConfigs) || (iConfigs != 1))
 	{
-		SGX_PERF_ERR_printf("Error: eglChooseConfig() failed.\n");
+		SGXPERF_ERR_printf("Error: eglChooseConfig() failed.\n");
 		return 1;
 	}
 	if(surfaceType == SGXPERF_SURFACE_TYPE_WINDOW)
@@ -561,7 +561,7 @@ tv_diff(struct timeval *tv1, struct timeval *tv2)
 
 static void common_log(int testid, unsigned long time)
 {
-	SGX_PERF_ERR_printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%ld\n", 
+	SGXPERF_ERR_printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%ld\n", 
 							testid, 
 							inTextureWidth, 
 							inTextureHeight, 
@@ -662,11 +662,11 @@ void test1()
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
 	
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClearColor(0.2f, 0.4f, 0.8f, 1.0f); // clear blue
 		glClear(GL_COLOR_BUFFER_BIT);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-    SGX_PERF_ENDPROFILEUNIT;		
+    SGXPERF_ENDPROFILEUNIT;		
 	}
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
@@ -688,18 +688,18 @@ void test2()
 
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-  SGX_PERF_ENDPROFILEUNIT		
+  SGXPERF_ENDPROFILEUNIT		
 	}
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	err = glGetError();
 	if(err)
-		SGX_PERF_ERR_printf("Error in gldraw err = %x", err);	
+		SGXPERF_ERR_printf("Error in gldraw err = %x", err);	
 
 	common_deinit_gl_vertices(pVertexArray);
 	common_log(2, diffTime2);
@@ -720,16 +720,16 @@ void test3()
 	gettimeofday(&startTime, NULL);
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)	
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 		//draw first area with texture
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT		
+SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
 	if(err)
-		SGX_PERF_ERR_printf("Error in gldraw err = %x", err);		
+		SGXPERF_ERR_printf("Error in gldraw err = %x", err);		
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(3, diffTime2);
@@ -759,16 +759,16 @@ void test4()
 	gettimeofday(&startTime, NULL);
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 		//some nonsense will come on screen as Alpha data is invalid for the sample
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT		
+SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
 	if(err)
-		SGX_PERF_ERR_printf("Error in gldraw err = %x", err);
+		SGXPERF_ERR_printf("Error in gldraw err = %x", err);
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(4, diffTime2);
@@ -800,15 +800,15 @@ void test5()
 	gettimeofday(&startTime, NULL);
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT		
+SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
 	if(err)
-		SGX_PERF_ERR_printf("Error in gldraw err = %x", err);
+		SGXPERF_ERR_printf("Error in gldraw err = %x", err);
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(5, diffTime2);
@@ -846,12 +846,12 @@ int test6_init_eglimage_khr(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 	peglCreateImageKHR = (PEGLCREATEIMAGEKHR)eglGetProcAddress("eglCreateImageKHR");
 	if(peglCreateImageKHR == NULL)
 	{
-		SGX_PERF_printf("eglCreateImageKHR not found!\n");
+		SGXPERF_printf("eglCreateImageKHR not found!\n");
 		return 2;
 	}
 	//create an egl image
 
-	SGX_PERF_printf("textureId0 = %d\n", textureId0); //getting 70001
+	SGXPERF_printf("textureId0 = %d\n", textureId0); //getting 70001
 	eglImage = peglCreateImageKHR(
 							eglDisplay,
 							EGL_NO_CONTEXT, //eglContext,
@@ -859,10 +859,10 @@ int test6_init_eglimage_khr(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 							pNativePixmap, //(void*)textureId0,//
 							NULL //miplevel 0 is fine, thank you
 							);
-	SGX_PERF_printf("peglCreateImageKHR returned %x\n", eglImage);
+	SGXPERF_printf("peglCreateImageKHR returned %x\n", eglImage);
 	if((err = eglGetError()) != EGL_SUCCESS)
 	{
-		SGX_PERF_printf("Error after peglCreateImageKHR!, error = %x\n", err);
+		SGXPERF_printf("Error after peglCreateImageKHR!, error = %x\n", err);
 		return 3;
 	}
 
@@ -870,20 +870,20 @@ int test6_init_eglimage_khr(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 	pFnEGLImageTargetTexture2DOES = 
 		(PFNGLEGLIMAGETARGETTEXTURE2DOES)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	if(pFnEGLImageTargetTexture2DOES == NULL)
-		SGX_PERF_printf("pFnEGLImageTargetTexture2DOES not found!\n");
+		SGXPERF_printf("pFnEGLImageTargetTexture2DOES not found!\n");
 	pFnEGLImageTargetTexture2DOES(GL_TEXTURE_2D, eglImage);
 	if((err = glGetError()) != 0)
 	{
-		SGX_PERF_printf("Error after glEGLImageTargetTexture2DOES!, error = %x\n", err);
+		SGXPERF_printf("Error after glEGLImageTargetTexture2DOES!, error = %x\n", err);
 		return 4;
 	}
-	SGX_PERF_printf("Destroying eglimage!\n");
+	SGXPERF_printf("Destroying eglimage!\n");
 	pEGLDestroyImage = (PEGLDESTROYIMAGE)eglGetProcAddress("eglDestroyImageKHR");
 	//destroy the eglimage
 	pEGLDestroyImage(eglDisplay, eglImage);
 	if((err = eglGetError()) != EGL_SUCCESS)
 	{
-		SGX_PERF_printf("Error after pEGLDestroyImage!, error = %x\n", err);
+		SGXPERF_printf("Error after pEGLDestroyImage!, error = %x\n", err);
 		return 5; 
 	}
 	return 0;
@@ -909,7 +909,7 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 	err = test6_init_eglimage_khr(pNativePixmap);
 	if(err)
 	{
-		SGX_PERF_ERR_printf("TEST6: Init failed with err = %d\n", err);
+		SGXPERF_ERR_printf("TEST6: Init failed with err = %d\n", err);
 		goto deinit;
 	}
 
@@ -917,12 +917,12 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 
 	err = glGetError();
 	if(err) 
-		SGX_PERF_ERR_printf("Error before gl draw loop err = %x\n", err);
+		SGXPERF_ERR_printf("Error before gl draw loop err = %x\n", err);
 
-	SGX_PERF_printf("Entering DrawArrays loop\n");
+	SGXPERF_printf("Entering DrawArrays loop\n");
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 		//texture will be already bound using the eglimage extension, no calling glteximage2d. How nice !!
 		if(i & 1)
@@ -936,12 +936,12 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 		}
 		eglimage_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT		
+SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
 	if(err) 
-		SGX_PERF_ERR_printf("Error in gl draw loop err = %x\n", err);
-	SGX_PERF_printf("Exiting DrawArrays loop\n");
+		SGXPERF_ERR_printf("Error in gl draw loop err = %x\n", err);
+	SGXPERF_printf("Exiting DrawArrays loop\n");
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(6, diffTime2);
@@ -982,10 +982,10 @@ int test7_init_eglimage_khr()
 	//get extension addresses
 	peglCreateImageKHR = (PEGLCREATEIMAGEKHR)eglGetProcAddress("eglCreateImageKHR");
 	if(peglCreateImageKHR == NULL)
-		SGX_PERF_printf("eglCreateImageKHR not found!\n");
+		SGXPERF_printf("eglCreateImageKHR not found!\n");
 	//create an egl image
 
-	SGX_PERF_printf("textureId0 = %d\n", textureId0); //getting 70001
+	SGXPERF_printf("textureId0 = %d\n", textureId0); //getting 70001
 	eglImage = peglCreateImageKHR(
 							eglDisplay,
 							eglContext,
@@ -993,10 +993,10 @@ int test7_init_eglimage_khr()
 							(void*)textureId0,//
 							NULL //miplevel 0 is fine, thank you
 							);
-	SGX_PERF_printf("peglCreateImageKHR returned %x\n", eglImage);
+	SGXPERF_printf("peglCreateImageKHR returned %x\n", eglImage);
 	if((err = eglGetError()) != EGL_SUCCESS)
 	{
-		SGX_PERF_printf("Error after peglCreateImageKHR!, error = %x\n", err);
+		SGXPERF_printf("Error after peglCreateImageKHR!, error = %x\n", err);
 		return 1;
 	}
 
@@ -1005,22 +1005,22 @@ int test7_init_eglimage_khr()
 		(PFNGLEGLIMAGETARGETTEXTURE2DOES)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	if(pFnEGLImageTargetTexture2DOES == NULL)
 	{
-		SGX_PERF_printf("pFnEGLImageTargetTexture2DOES not found!\n");
+		SGXPERF_printf("pFnEGLImageTargetTexture2DOES not found!\n");
 		return 2;
 	}
 	pFnEGLImageTargetTexture2DOES(GL_TEXTURE_2D, eglImage);
 	if((err = eglGetError()) != EGL_SUCCESS)
 	{
-		SGX_PERF_printf("Error after glEGLImageTargetTexture2DOES!, error = %x\n", err);
+		SGXPERF_printf("Error after glEGLImageTargetTexture2DOES!, error = %x\n", err);
 		return 3;
 	}
-	SGX_PERF_printf("Destroying eglimage!\n");
+	SGXPERF_printf("Destroying eglimage!\n");
 	pEGLDestroyImage = (PEGLDESTROYIMAGE)eglGetProcAddress("eglDestroyImageKHR");
 	//destroy the eglimage
 	pEGLDestroyImage(eglDisplay, eglImage);
 	if((err = eglGetError()) != EGL_SUCCESS)
 	{
-		SGX_PERF_printf("Error after pEGLDestroyImage!, error = %x\n", err);
+		SGXPERF_printf("Error after pEGLDestroyImage!, error = %x\n", err);
 		return 4;
 	}
 
@@ -1049,15 +1049,15 @@ void test7()
 	err = test7_init_eglimage_khr();
 	if(err)
 	{
-		SGX_PERF_ERR_printf("TEST7: Init failed with err = %d", err);
+		SGXPERF_ERR_printf("TEST7: Init failed with err = %d", err);
 		goto deinit;
 	}
 
 	gettimeofday(&startTime, NULL);
-	SGX_PERF_printf("Entering DrawArrays loop\n");
+	SGXPERF_printf("Entering DrawArrays loop\n");
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 		//texture will be already bound using the eglimage extension, no calling glteximage2d. How nice !!
 		if(i & 1)
@@ -1071,12 +1071,12 @@ void test7()
 		}
 		eglimage_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT		
+SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
 	if(err) 
-		SGX_PERF_printf("Error in gl draw loop err = %d\n", err);
-	SGX_PERF_printf("Exiting DrawArrays loop\n");
+		SGXPERF_printf("Error in gl draw loop err = %d\n", err);
+	SGXPERF_printf("Exiting DrawArrays loop\n");
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(7, diffTime2);
@@ -1143,18 +1143,18 @@ int test8_init_texture_streaming_userptr()
     virtualAddress = CMEM_alloc(inTextureWidth*inTextureHeight*4, &cmemParams);
     if(!virtualAddress)                                      
     {
-		  SGX_PERF_printf("Error in CMEM_alloc\n");
+		  SGXPERF_printf("Error in CMEM_alloc\n");
       return 1;
     }
     physicalAddress = CMEM_getPhys(virtualAddress);
     if(!physicalAddress)                                      
     {
-		  SGX_PERF_printf("Error in CMEM_getPhys\n");
+		  SGXPERF_printf("Error in CMEM_getPhys\n");
       return 2;
     }
 	 //setup driver now
     if ((bcfd = open(BC_CAT_DRV, O_RDWR|O_NDELAY)) == -1) {
-		  SGX_PERF_printf("Error opening bc driver - is bufferclass_ti module inserted ?\n");  
+		  SGXPERF_printf("Error opening bc driver - is bufferclass_ti module inserted ?\n");  
       CMEM_free((void*)virtualAddress, &cmemParams);
         return 3;
     }
@@ -1163,33 +1163,33 @@ int test8_init_texture_streaming_userptr()
     bc_param.height = inTextureHeight;
     bc_param.fourcc = BC_PIX_FMT_YUYV;           
     bc_param.type = BC_MEMORY_USERPTR;
-    SGX_PERF_printf("About to BCIOREQ_BUFFERS \n");        
+    SGXPERF_printf("About to BCIOREQ_BUFFERS \n");        
     err = ioctl(bcfd, BCIOREQ_BUFFERS, &bc_param);
     if (err != 0) {    
       CMEM_free(virtualAddress, &cmemParams);
-        SGX_PERF_ERR_printf("ERROR: BCIOREQ_BUFFERS failed err = %x\n", err);
+        SGXPERF_ERR_printf("ERROR: BCIOREQ_BUFFERS failed err = %x\n", err);
         return 4;
     }                                                      
-    SGX_PERF_printf("About to BCIOGET_BUFFERCOUNT \n");
+    SGXPERF_printf("About to BCIOGET_BUFFERCOUNT \n");
     if (ioctl(bcfd, BCIOGET_BUFFERCOUNT, &ioctl_var) != 0) {    
       CMEM_free(virtualAddress, &cmemParams);
-		  SGX_PERF_printf("Error ioctl BCIOGET_BUFFERCOUNT");
+		  SGXPERF_printf("Error ioctl BCIOGET_BUFFERCOUNT");
         return 5;
     }
     if (ioctl_var.output == 0) {    
         CMEM_free(virtualAddress, &cmemParams);
-        SGX_PERF_printf("Error no buffers available from driver \n");
+        SGXPERF_printf("Error no buffers available from driver \n");
         return 6;
     }
     //For USERPTR mode, set the buffer pointer first
-    SGX_PERF_printf("About to BCIOSET_BUFFERADDR \n");            
+    SGXPERF_printf("About to BCIOSET_BUFFERADDR \n");            
     buf_pa.index = 0;    
     buf_pa.pa = (int)physicalAddress;    
     buf_pa.size = inTextureWidth * inTextureHeight * 2;
     if (ioctl(bcfd, BCIOSET_BUFFERPHYADDR, &buf_pa) != 0) 
     {       
         CMEM_free(virtualAddress, &cmemParams);
-        SGX_PERF_printf("Error BCIOSET_BUFFERADDR failed\n");
+        SGXPERF_printf("Error BCIOSET_BUFFERADDR failed\n");
         return 7;
     }
         
@@ -1199,7 +1199,7 @@ int test8_init_texture_streaming_userptr()
     if (!pszGLExtensions || !strstr((char *)pszGLExtensions, "GL_IMG_texture_stream2"))
 	{
     CMEM_free(virtualAddress, &cmemParams);
-		SGX_PERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
+		SGXPERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
 		return 8;
 	}
 
@@ -1212,7 +1212,7 @@ int test8_init_texture_streaming_userptr()
     if(!myglTexBindStreamIMG || !myglGetTexStreamDeviceAttributeivIMG || !myglGetTexStreamDeviceNameIMG)
 	{
       CMEM_free(virtualAddress, &cmemParams);
-		  SGX_PERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
+		  SGXPERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
       return 9;
 	}
 
@@ -1225,7 +1225,7 @@ int test8_init_texture_streaming_userptr()
     glTexParameteri(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    SGX_PERF_printf("\nStream Device %s: numBuffers = %d, width = %d, height = %d, format = %x\n",
+    SGXPERF_printf("\nStream Device %s: numBuffers = %d, width = %d, height = %d, format = %x\n",
         pszStreamDeviceName, numBuffers, bufferWidth, bufferHeight, bufferFormat);
 
 #ifdef _ENABLE_LARGE_HEADER_INCLUDE
@@ -1234,7 +1234,7 @@ int test8_init_texture_streaming_userptr()
 		else if((inTextureWidth == 720) && (inTextureHeight == 480)) //for VGA
 		{
 			FILE*fp = fopen("coastguard_d1_422.yuv","rb");
-			if(!fp) {SGX_PERF_printf("Error opening YUV file\n"); return 9;}
+			if(!fp) {SGXPERF_printf("Error opening YUV file\n"); return 9;}
 			fread(virtualAddress,720*480*2,1,fp);
 			fclose(fp);
 		}
@@ -1264,7 +1264,7 @@ int test8_init_texture_streaming()
 
 	//setup driver now
     if ((bcfd = open(BC_CAT_DRV, O_RDWR|O_NDELAY)) == -1) {
-		SGX_PERF_printf("Error opening bc driver - is bc_cat module inserted ?\n");
+		SGXPERF_printf("Error opening bc driver - is bc_cat module inserted ?\n");
         return 3;
     }
     bc_param.count = 1;
@@ -1273,15 +1273,15 @@ int test8_init_texture_streaming()
     bc_param.fourcc = BC_PIX_FMT_UYVY;//pixel_fmt = PVRSRV_PIXEL_FORMAT_FOURCC_ORG_UYVY;           
     bc_param.type = BC_MEMORY_MMAP;
     if (ioctl(bcfd, BCIOREQ_BUFFERS, &bc_param) != 0) {
-        SGX_PERF_printf("ERROR: BCIOREQ_BUFFERS failed\n");
+        SGXPERF_printf("ERROR: BCIOREQ_BUFFERS failed\n");
         return 4;
     }
     if (ioctl(bcfd, BCIOGET_BUFFERCOUNT, &ioctl_var) != 0) {
-		SGX_PERF_printf("Error ioctl BCIOGET_BUFFERCOUNT");
+		SGXPERF_printf("Error ioctl BCIOGET_BUFFERCOUNT");
         return 5;
     }
     if (ioctl_var.output == 0) {
-        SGX_PERF_printf("no buffers available from driver \n");
+        SGXPERF_printf("no buffers available from driver \n");
         return 6;
     }
 
@@ -1290,7 +1290,7 @@ int test8_init_texture_streaming()
 
     if (!pszGLExtensions || !strstr((char *)pszGLExtensions, "GL_IMG_texture_stream2"))
 	{
-		SGX_PERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
+		SGXPERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
 		return 1;
 	}
 
@@ -1302,7 +1302,7 @@ int test8_init_texture_streaming()
 
     if(!myglTexBindStreamIMG || !myglGetTexStreamDeviceAttributeivIMG || !myglGetTexStreamDeviceNameIMG)
 	{
-		SGX_PERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
+		SGXPERF_printf("TEST8: GL_IMG_texture_stream unsupported\n");
         return 2;
 	}
 
@@ -1315,17 +1315,17 @@ int test8_init_texture_streaming()
     glTexParameteri(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    SGX_PERF_printf("\nStream Device %s: numBuffers = %d, width = %d, height = %d, format = %x\n",
+    SGXPERF_printf("\nStream Device %s: numBuffers = %d, width = %d, height = %d, format = %x\n",
         pszStreamDeviceName, numBuffers, bufferWidth, bufferHeight, bufferFormat);
 
     for (idx = 0; idx < MAX_BUFFERS; idx++) {
         ioctl_var.input = idx;
 
         if (ioctl(bcfd, BCIOGET_BUFFERPHYADDR, &ioctl_var) != 0) {
-            SGX_PERF_printf("BCIOGET_BUFFERADDR: failed\n");
+            SGXPERF_printf("BCIOGET_BUFFERADDR: failed\n");
             return 7;
         }
-        SGX_PERF_printf("phyaddr[%d]: 0x%x\n", idx, ioctl_var.output);
+        SGXPERF_printf("phyaddr[%d]: 0x%x\n", idx, ioctl_var.output);
 
         buf_paddr[idx] = (char*)ioctl_var.output;
         buf_vaddr[idx] = (char *)mmap(NULL, inTextureWidth*inTextureHeight*2,
@@ -1333,7 +1333,7 @@ int test8_init_texture_streaming()
                           bcfd, (long)buf_paddr[idx]);
 
         if (buf_vaddr[idx] == MAP_FAILED) {
-            SGX_PERF_printf("Error: failed mmap\n");
+            SGXPERF_printf("Error: failed mmap\n");
             return 8;
         }
 
@@ -1343,7 +1343,7 @@ int test8_init_texture_streaming()
 		else if((inTextureWidth == 720) && (inTextureHeight == 480)) //for VGA
 		{
 			FILE*fp = fopen("coastguard_d1_422.yuv","rb");
-			if(!fp) {SGX_PERF_printf("Error opening YUV file\n"); return 9;}
+			if(!fp) {SGXPERF_printf("Error opening YUV file\n"); return 9;}
 			fread(buf_vaddr[idx],720*480*2,1,fp);
 			fclose(fp);
 		}
@@ -1388,7 +1388,7 @@ void test8()
 #endif
 	if(err)
 	{
-		SGX_PERF_ERR_printf("TEST8: Init failed with err = %d\n", err);
+		SGXPERF_ERR_printf("TEST8: Init failed with err = %d\n", err);
 		goto deinit;
 	}
 	//initialise gl vertices
@@ -1405,21 +1405,21 @@ void test8()
 	//glEnable(GL_TEXTURE_STREAM_IMG);
 
 	gettimeofday(&startTime, NULL);
-	SGX_PERF_printf("TEST8: Entering DrawArrays loop\n");
+	SGXPERF_printf("TEST8: Entering DrawArrays loop\n");
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		myglTexBindStreamIMG(0, bufferIndex);
 		img_stream_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers (eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT		
+SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
 	if(err) 
-		SGX_PERF_ERR_printf("Error in glTexBindStream loop err = %d", err);
-	SGX_PERF_printf("Exiting DrawArrays loop\n");
+		SGXPERF_ERR_printf("Error in glTexBindStream loop err = %d", err);
+	SGXPERF_printf("Exiting DrawArrays loop\n");
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(8, diffTime2);
@@ -1483,10 +1483,10 @@ void test10() //Test PVR2D test cases
 	test10_init();
 
 	gettimeofday(&startTime, NULL);
-	SGX_PERF_printf("TESTa: Entering DrawArrays loop\n");
+	SGXPERF_printf("TESTa: Entering DrawArrays loop\n");
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++) //limiting to avoid memwrap issues
 	{
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		//Test locality of memwrap
 		pLocalTexture = malloc(4 * inTextureWidth * inTextureHeight);
 		if(!pLocalTexture) {printf("Error malloc, exit\n"); exit(1);}
@@ -1520,9 +1520,9 @@ void test10() //Test PVR2D test cases
 		PVR2DMemFree(hPVR2DContext, pSrcMemInfo_MemWrap);
 		//free texture
 		if(pLocalTexture) free(pLocalTexture);
-	  SGX_PERF_ENDPROFILEUNIT;		
+	  SGXPERF_ENDPROFILEUNIT;		
 	}
-	SGX_PERF_printf("Exiting Draw loop\n");
+	SGXPERF_printf("Exiting Draw loop\n");
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log('a', diffTime2);
@@ -1556,11 +1556,11 @@ void test13()
 	gettimeofday(&startTime, NULL);	
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{	
-//		SGX_PERF_STARTPROFILEUNIT;	
+//		SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);		
 		glDrawArrays(GL_LINES, 0, NUM_LINES_TEST13);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-//		SGX_PERF_ENDPROFILEUNIT;		
+//		SGXPERF_ENDPROFILEUNIT;		
 	}
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
@@ -1583,7 +1583,7 @@ void test14()
 	gettimeofday(&startTime, NULL);
 	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)	
 	{	
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 	  //Switch to surface 2
 	  eglMakeCurrent(eglDisplay, eglSurface2, eglSurface2, eglContext);		
 	  //Switch back to surface 1 and draw to surface 1
@@ -1591,11 +1591,11 @@ void test14()
 		glClear(GL_COLOR_BUFFER_BIT);		
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
-	  SGX_PERF_ENDPROFILEUNIT;    		
+	  SGXPERF_ENDPROFILEUNIT;    		
 	}
 	err = glGetError();
 	if(err)
-		SGX_PERF_ERR_printf("Error in gldraw err = %x", err);		
+		SGXPERF_ERR_printf("Error in gldraw err = %x", err);		
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(14, diffTime2);
@@ -1667,7 +1667,7 @@ unsigned int dstBytesPerPixel
 
 	if(pSrcMemInfo_MemWrap1 == NULL) 
 	{
-		SGX_PERF_printf("Fatal Error in memwrap of source %x, err = %d\n",
+		SGXPERF_printf("Fatal Error in memwrap of source %x, err = %d\n",
         (unsigned int)srcPtr, ePVR2DStatus1);
 		return 1;
 	}
@@ -1693,7 +1693,7 @@ unsigned int dstBytesPerPixel
 
 	if(pDstMemInfo_MemWrap == NULL) 
 	{
-		SGX_PERF_printf("Fatal Error in pvr2dmemwrap of %x, exiting\n", dstPtr);
+		SGXPERF_printf("Fatal Error in pvr2dmemwrap of %x, exiting\n", dstPtr);
 		return 1;
 	}
 
@@ -1712,9 +1712,9 @@ unsigned int dstBytesPerPixel
   pBlt1->CopyCode = PVR2DROPcopy;
 	ePVR2DStatus1 = PVR2DBlt(hPVR2DContext1, pBlt1);		
  	ePVR2DStatus1 = PVR2DQueryBlitsComplete(hPVR2DContext1, pSrcMemInfo_MemWrap1, 1);
-	SGX_PERF_printf("src Blt Complete Query = %d\n", ePVR2DStatus1);
+	SGXPERF_printf("src Blt Complete Query = %d\n", ePVR2DStatus1);
  	ePVR2DStatus1 = PVR2DQueryBlitsComplete(hPVR2DContext, pDstMemInfo_MemWrap, 1);
-	SGX_PERF_printf("dst Blt Complete Query = %d\n", ePVR2DStatus1);
+	SGXPERF_printf("dst Blt Complete Query = %d\n", ePVR2DStatus1);
 	//unwrap again
 	//PVR2DMemFree(hPVR2DContext1, pSrcMemInfo_MemWrap1);
 	//PVR2DMemFree(hPVR2DContext1, pDstMemInfo_MemWrap);
@@ -1743,7 +1743,7 @@ void test15()
 
 	for(i = 0;(i < (unsigned int)numTestIterations)&&(!quitSignal);i ++)	
 	{	
-	  SGX_PERF_STARTPROFILEUNIT;	
+	  SGXPERF_STARTPROFILEUNIT;	
 		test15_process(
 		    textureData,
 		    (void*)outBuffer,
@@ -1756,7 +1756,7 @@ void test15()
 		    2,
 		    2
 		    );
-	  SGX_PERF_ENDPROFILEUNIT;    		
+	  SGXPERF_ENDPROFILEUNIT;    		
 	}
 
 	gettimeofday(&endTime, NULL);
@@ -1800,7 +1800,7 @@ PFNGLEGLIMAGETARGETTEXTURE2DOESPROC pFnEGLImageTargetTexture2DOES;
 #endif
 
 EGLint eglImageAttributes[] = {
-            EGL_GL_VIDEO_FOURCC_TI,      FOURCC_STR("YUYV"),
+            EGL_GL_VIDEO_FOURCC_TI,      FOURCC_STR("NV12"),
             EGL_GL_VIDEO_WIDTH_TI,       inTextureWidth,
             EGL_GL_VIDEO_HEIGHT_TI,      inTextureHeight,
             EGL_GL_VIDEO_BYTE_STRIDE_TI, inTextureWidth*2,
@@ -1826,7 +1826,7 @@ void test16()
 	eglImage = peglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI, yuvbuff, eglImageAttributes);
 	if(eglImage == EGL_NO_IMAGE_KHR)
 	{
-		SGX_PERF_printf("EGLImage not created, err = %x\n", eglGetError());
+		SGXPERF_ERR_printf("EGLImage not created, err = %x\n", eglGetError());
 		return;
 	}
 	
@@ -1849,19 +1849,27 @@ void test16()
         }
         err = glGetError();
         if(err)
-                SGX_PERF_ERR_printf("Error in gldraw err = %x", err);
+	{
+                SGXPERF_ERR_printf("Error in gldraw err = %x\n", err);
+	}
+        err = eglGetError();
+        if(err)
+	{
+                SGXPERF_ERR_printf("Error in egl err = %x\n", err);
+	}
+
         common_deinit_gl_vertices(pVertexArray);
         common_deinit_gl_texcoords(pTexCoordArray);
 	
 	pEGLDestroyImage(eglDisplay, eglImage);
-	
+        SGXPERF_ERR_printf("finished test16\n");
 }
 #endif
 
 /* Signal handler for clean closure of GL */
 void sgxperf_signal_handler(int reason) 
 { 
-  SGX_PERF_ERR_printf("\nGot quit signal - Results will be inaccurate!\n"); 
+  SGXPERF_ERR_printf("\nGot quit signal - Results will be inaccurate!\n"); 
   quitSignal = 1; 
 }
 
@@ -2045,15 +2053,15 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	/* Pre init step - check the arguments */
 	if(argc < 11)
 	{
-		SGX_PERF_ERR_printf("Error: Invalid number of operands \n\n");
-		SGX_PERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("Error: Invalid number of operands \n\n");
+		SGXPERF_ERR_printf(helpString);
 		exit(-1);
 	}
 	testID = atol(argv[1]);
 	if(testID > MAX_TEST_ID || testID < 0)
 	{
-		SGX_PERF_ERR_printf("Error: No test available with this ID %d\n\n", testID);
-		SGX_PERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("Error: No test available with this ID %d\n\n", testID);
+		SGXPERF_ERR_printf(helpString);
 		exit(-1);
 	}
 	inNumberOfObjectsPerSide = atol(argv[7]);
@@ -2061,8 +2069,8 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 
 	if((testID == 9) && argc < 7)
 	{
-		SGX_PERF_ERR_printf("Error: SVG needs file path\n\n");
-		SGX_PERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("Error: SVG needs file path\n\n");
+		SGXPERF_ERR_printf(helpString);
 		exit(-1);
 	}
 	else
@@ -2072,8 +2080,8 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	{
 		if(testID > 2) //1 and 2 do not need textures
 		{
-			SGX_PERF_ERR_printf("Error: Invalid number of operands for selected testID %d\n\n", testID);
-			SGX_PERF_ERR_printf(helpString);
+			SGXPERF_ERR_printf("Error: Invalid number of operands for selected testID %d\n\n", testID);
+			SGXPERF_ERR_printf(helpString);
 			exit(-1);
 		}
 	}
@@ -2091,8 +2099,8 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		inPixelFormat = atol(argv[5]);
 	if(inPixelFormat != SGXPERF_RGB565 && inPixelFormat != SGXPERF_ARGB8888 && inPixelFormat != SGXPERF_BYTE8)
 	{
-		SGX_PERF_ERR_printf("Error: Unsupported pixel format for texture %d \n\n", inPixelFormat);
-		SGX_PERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("Error: Unsupported pixel format for texture %d \n\n", inPixelFormat);
+		SGXPERF_ERR_printf(helpString);
 		exit(-1);
 	}
   
@@ -2104,29 +2112,29 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
     
 	if((inTextureWidth > 8000) || (inTextureHeight > 8000))
 	{
-		SGX_PERF_ERR_printf("Error: Width or Height exceeds 8000 \n\n");
-		SGX_PERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("Error: Width or Height exceeds 8000 \n\n");
+		SGXPERF_ERR_printf(helpString);
 		exit(-1);
 	}
 #ifndef _ENABLE_CMEM
 	if(testID == 6 || testID == 7 || inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || 
                                     inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
 	{
-		SGX_PERF_ERR_printf("ERROR: Cannot run native pixmap tests without CMEM\n");
+		SGXPERF_ERR_printf("ERROR: Cannot run native pixmap tests without CMEM\n");
 		exit(-1);
 	}
 #endif
 #ifndef _ENABLE_BUFFERCLASS
 	if(testID == 8)
 	{
-		SGX_PERF_ERR_printf("ERROR: Cannot run test8 without BUFFERCLASS driver\n");
+		SGXPERF_ERR_printf("ERROR: Cannot run test8 without BUFFERCLASS driver\n");
 		exit(-1);
 	}
 #endif
 	//for pixmap related tests, surface cannot be pixmap
 	if(testID == 6 && inSurfaceType != SGXPERF_SURFACE_TYPE_WINDOW)
 	{
-		SGX_PERF_ERR_printf("ERROR: Cannot run native pixmap eglimage test with pixmap surface\n");
+		SGXPERF_ERR_printf("ERROR: Cannot run native pixmap eglimage test with pixmap surface\n");
 		goto cleanup;
 	}
 
@@ -2135,21 +2143,21 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 #ifdef _ENABLE_CMEM
 	//Initialise the CMEM module. 
 	//CMEM ko should be inserted before this point
-	SGX_PERF_printf("Configuring CMEM\n");
+	SGXPERF_printf("Configuring CMEM\n");
 	CMEM_init();
 #endif
 
 	//Allocate texture for use in GL texturing modes(can also be done from CMEM if memory permits
 	textureData = (unsigned int*)malloc(inTextureWidth*inTextureHeight*4);
 	if(!textureData)
-		SGX_PERF_ERR_printf("ERROR: No malloc memory for allocating texture!\n");
+		SGXPERF_ERR_printf("ERROR: No malloc memory for allocating texture!\n");
 	set_texture(inTextureWidth, inTextureHeight, (unsigned char*)textureData, inPixelFormat);
 
 	//initialise egl
 	err = common_eglinit(testID, inSurfaceType, &pNativePixmap);
 	if(err)
 	{
-		SGX_PERF_ERR_printf("ERROR: eglinit - err = %d\n", err);
+		SGXPERF_ERR_printf("ERROR: eglinit - err = %d\n", err);
 		goto cleanup;
 	}
 
@@ -2190,7 +2198,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
         glGetShaderInfoLog(uiFragShader, i32InfoLogLength, &i32CharsWritten, pszInfoLog);
 
 		// Displays the error
-		SGX_PERF_ERR_printf("Failed to compile fragment shader: %s\n", pszInfoLog);
+		SGXPERF_ERR_printf("Failed to compile fragment shader: %s\n", pszInfoLog);
 		delete [] pszInfoLog;
 		goto cleanup;
 	}
@@ -2213,7 +2221,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		glGetShaderiv(uiVertShader, GL_INFO_LOG_LENGTH, &i32InfoLogLength);
 		char* pszInfoLog = new char[i32InfoLogLength];
         glGetShaderInfoLog(uiVertShader, i32InfoLogLength, &i32CharsWritten, pszInfoLog);
-		SGX_PERF_ERR_printf("Failed to compile vertex shader: %s\n", pszInfoLog);
+		SGXPERF_ERR_printf("Failed to compile vertex shader: %s\n", pszInfoLog);
 		delete [] pszInfoLog;
 		goto cleanup;
 	}
@@ -2242,7 +2250,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		glGetProgramiv(uiProgramObject, GL_INFO_LOG_LENGTH, &ui32InfoLogLength);
 		char* pszInfoLog = new char[ui32InfoLogLength];
 		glGetProgramInfoLog(uiProgramObject, ui32InfoLogLength, &ui32CharsWritten, pszInfoLog);
-		SGX_PERF_ERR_printf("Failed to link program: %s\n", pszInfoLog);
+		SGXPERF_ERR_printf("Failed to link program: %s\n", pszInfoLog);
 		delete [] pszInfoLog;
 		goto cleanup;
 	}
@@ -2277,7 +2285,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		{
 			case 0:
 				extensions = (char*)glGetString(GL_EXTENSIONS);
-				SGX_PERF_ERR_printf("\nTESTID = 0: SUPPORTED EXTENSIONS = \n%s\n", extensions);
+				SGXPERF_ERR_printf("\nTESTID = 0: SUPPORTED EXTENSIONS = \n%s\n", extensions);
 				break;
 			case 1:
 				/* Fill entire screen with single colour, no objects */
@@ -2359,8 +2367,15 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 				test15();
 				break;
 #endif
+#ifdef _ENABLE_TEST16
+			case 16:
+				/* YUV-Streaming with EGLImage */
+				test16();
+				break;
+#endif
 			default:
 				/* Sorry guys, we tried ! */
+				SGXPERF_ERR_printf("No matching test code\n");
 				break;
 		}
 #ifdef _ENABLE_CMEM
@@ -2374,7 +2389,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		int numbytes;
 		if(inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32) numbytes = 4; //ARGB8888
 		if(inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16) numbytes = 2; //RGB565
-		SGX_PERF_ERR_printf("Writing pixmap data to file pixmap.raw\n");
+		SGXPERF_ERR_printf("Writing pixmap data to file pixmap.raw\n");
 		fwrite((void*)pNativePixmap->lAddress, 1, inTextureWidth*inTextureHeight*numbytes, fp);
 		fclose(fp);
 #endif
