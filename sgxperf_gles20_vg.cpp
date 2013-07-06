@@ -1818,7 +1818,7 @@ void test16()
 	char* yuvbuff = (char*)malloc(inTextureWidth*inTextureHeight*2+PAGE_SIZE);
 	yuvbuff -= ((unsigned int)yuvbuff & (PAGE_SIZE-1));
 	
-	memset(yuvbuff, 0, sizeof(yuvbuff));
+	memset(yuvbuff, 0, inTextureWidth*inTextureHeight*2+PAGE_SIZE);
 	peglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
 	pFnEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	pEGLDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
