@@ -1,6 +1,5 @@
 # Makefile to build sgxperf
-# For OGLES2.0 and OVG performance validation on Linux
-# View README and INSTALL for usage and installation
+# For OGLES2.0 performance validation on Linux
 # (c) TEXAS INSTRUMENTS, 2013
 # prabu@ti.com
 
@@ -31,9 +30,8 @@ PLAT_AR  = $(CROSS_COMPILE)ar
 
 LIBDIR_FLAGS = -L$(LIBDIR) -Wl,--rpath-link,$(LIBDIR)
 
-PLAT_CFLAGS   = -DBUILD_OGLES2 -Wall -DRELEASE -O2 \
-				-DAPIENTRY=GL_APIENTRY            \
-				-DUSE_TRIGONOMETRIC_LOOKUP_TABLES 
+PLAT_CFLAGS   = -Wall -O2
+
 ifeq "$(_ENABLE_BUFFERCLASS)" "1"
 PLAT_CFLAGS += -D_ENABLE_BUFFERCLASS 
 endif
@@ -61,7 +59,7 @@ PVR2D_LINK = -lpvr2d
 
 $(PLAT_OBJPATH)/$(OUTNAME) : $(OBJECTS) 
 	mkdir -p $(PLAT_OBJPATH)
-	$(PLAT_CPP) -o $(PLAT_OBJPATH)/$(OUTNAME) $(OBJECTS) $(OBJECTS1) $(OBJECTS2) $(LINK) $(PLAT_LINK) $(VG_LINK) $(PVR2D_LINK)
+	$(PLAT_CPP) -o $(PLAT_OBJPATH)/$(OUTNAME) $(OBJECTS) $(OBJECTS1) $(OBJECTS2) $(LINK) $(PLAT_LINK) $(PVR2D_LINK)
 
 $(PLAT_OBJPATH)/%.o: %.cpp 
 	mkdir -p $(PLAT_OBJPATH)
