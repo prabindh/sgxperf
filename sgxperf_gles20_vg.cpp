@@ -365,7 +365,7 @@ int common_eglinit(int testID, int surfaceType, NATIVE_PIXMAP_STRUCT** pNativePi
 	eglQuerySurface(eglDisplay, eglSurface, EGL_WIDTH, &windowWidth);
 	eglQuerySurface(eglDisplay, eglSurface, EGL_HEIGHT, &windowHeight);
 	
-	fprintf(stderr,"Window width=%d, Height=%d\n", windowWidth, windowHeight);
+	SGXPERF_printf("Window width=%d, Height=%d\n", windowWidth, windowHeight);
 
 	return 0;
 }
@@ -1816,9 +1816,10 @@ void test16()
 	int i, err;
 	//Allocate memory for the YUV texture input buffer
 	char* yuvbuff = (char*)malloc(inTextureWidth*inTextureHeight*2+PAGE_SIZE);
-	yuvbuff += (PAGE_SIZE - (unsigned int)yuvbuff & (PAGE_SIZE-1));
-	
+	yuvbuff += (PAGE_SIZE - ((unsigned int)yuvbuff & (PAGE_SIZE-1)));
+	SGXPERF_ERR_printf("yuvbuff = %x\n", (unsigned int)yuvbuff);
 	memset(yuvbuff, 0, inTextureWidth*inTextureHeight*2+PAGE_SIZE);
+
 	peglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
 	pFnEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	pEGLDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
@@ -1924,6 +1925,15 @@ int main(int argc, char **argv)
 			 {	\
 				gl_FragColor = textureStreamIMG(sTexture, TexCoord); \
 			 }";
+	const char* pszFragEGLImageShader = "\
+			#extension GL_OES_EGL_image_external : enable \
+			uniform samplerExternalOES yuvTexSampler;\
+			varying mediump vec2 TexCoord; \
+			void main(void) \
+			{	\
+				gl_FragColor = texture2D(yuvTexSampler, TexCoord); \
+			}";
+
 	const char* pszFragEdgeYUVDetectShader = "\
 		 #ifdef GL_IMG_texture_stream2\n \
 		 #extension GL_IMG_texture_stream2 : enable \n \
@@ -2067,15 +2077,6 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	inNumberOfObjectsPerSide = atol(argv[7]);
 	inSurfaceType = atol(argv[8]);
 
-	if((testID == 9) && argc < 7)
-	{
-		SGXPERF_ERR_printf("Error: SVG needs file path\n\n");
-		SGXPERF_ERR_printf(helpString);
-		exit(-1);
-	}
-	else
-		inSvgFileName = argv[6];
-
 	if(argc < 4)
 	{
 		if(testID > 2) //1 and 2 do not need textures
@@ -2177,6 +2178,8 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		glShaderSource(uiFragShader, 1, (const char**)&pszFragEdgeYUVDetectShader, NULL);
 	else if(testID == 8) //IMG texture stream2
 		glShaderSource(uiFragShader, 1, (const char**)&pszFragIMGTextureStreamShader, NULL);
+	else if(testID == 16) //EGLImage streaming
+		glShaderSource(uiFragShader, 1, (const char**)&pszFragEGLImageShader, NULL);
 	else
 		glShaderSource(uiFragShader, 1, (const char**)&pszFragNoTextureShader, NULL);
 
@@ -2207,10 +2210,13 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	uiVertShader = glCreateShader(GL_VERTEX_SHADER);
 	if((testID == 3) || (testID == 5) || (testID == 6) || (testID == 7) || 
         (testID == 8) || (testID == 11) || (testID == 12)
-           || (testID == 14))
+           || (testID == 14) || (testID == 16))
 		glShaderSource(uiVertShader, 1, (const char**)&pszVertTextureShader, NULL);
 	else
+	{
+		SGXPERF_ERR_printf("INFO: Using no-texture vertex shader\n");
 		glShaderSource(uiVertShader, 1, (const char**)&pszVertNoTextureShader, NULL);
+	}
 
 	glCompileShader(uiVertShader);
     glGetShaderiv(uiVertShader, GL_COMPILE_STATUS, &bShaderCompiled);
