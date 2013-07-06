@@ -1,7 +1,7 @@
 /******************************************************************************
 
 Test file for validating throughputs for 2D related operations, using 
-the openGLES and VG APIs and PVR2D.
+the openGLES and PVR2D.
 
 View the README and INSTALL files for usage and build instructions
 
@@ -20,43 +20,52 @@ v0.31 - Made it compatible with xgfxperf
 v0.32 - Added Line drawing test (test13)
 v0.33 - Added context switch (test14)
 v0.34 - Added PVR2D YUV-RGB (test15)
+v0.35 - Jun 2013 - Added eglImage-YUV tests (test16)
 
 Latest code and information can be obtained from
-https://gitorious.org/tigraphics
-Earlier versions and links to XgxPerf (a Qt based tool) can be obtained from
-https://gforge.ti.com/gf/project/gleslayer/
+http://github.com/prabindh/sgxperf
+
+XgxPerf (a Qt5 C++ based 2D benchmarking tool) can be obtained from 
+https://github.com/prabindh/xgxperf
 
 Prabindh Sundareson prabu@ti.com
-(c) Texas Instruments 2011
+(c) Texas Instruments 2013
 ******************************************************************************/
 #include <stdio.h>
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#include "PVRTools.h"
-#include "OVGTools.h"
-#include "VG/openvg.h"
 #include <sys/time.h> //for profiling
 #include <stdlib.h> //for profiling
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include "gl2ext.h"
+#include "eglext.h"
+
+
+
+#include "math.h"
+
 #ifdef _ENABLE_CMEM
 #include <cmem.h> //for contiguous physical memory allocation. Always used.
 #endif //CMEM
 
+#ifdef _ENABLE_LARGE_HEADER_INCLUDE //Bitmaps are really huge
 #include "sgxperf.h"
 extern unsigned int _photoframe_pvr_1024x1024[];
 extern unsigned int _photoframe_565_1024x1024[];
 extern unsigned char yukio_160x128yuv[];
 extern unsigned int _fan256x256_argb[];
 extern unsigned int _fan256x256_rgb565[];
+#endif
 
-#define MAX_TEST_ID 14 //Max number of available tests
-#define SGX_PERF_VERSION 1.0
+
+#define MAX_TEST_ID 16 //Max number of available tests
+#define SGX_PERF_VERSION 1.1
 
 #define _ENABLE_TEST1 /* Fill entire screen with single colour, no objects */
-#define _ENABLE_TEST2 /* Draw a coloured triangle filling entire screen */
+#define _ENABLE_TEST2 /* Draw a coloured rect filling entire screen */
 #define _ENABLE_TEST3 /* glTexImage2D based texturing */
 #define _ENABLE_TEST4 /* Alpha blending full surface texture */
 #define _ENABLE_TEST5 /* Alpha blending full surface WITHOUT texture */
@@ -70,11 +79,11 @@ extern unsigned int _fan256x256_rgb565[];
 #ifdef _ENABLE_BUFFERCLASS
 #define _ENABLE_TEST8 /* GL_IMG_texture_stream */
 #endif //IMGSTREAM
-#define _ENABLE_TEST9 /* Fill entire screen with single colour, read and render SVG */
 #define _ENABLE_TEST10 /* PVR2D Blit */
 #define _ENABLE_TEST13 /* Filled Lines */
 #define _ENABLE_TEST14 /* multi surface context switch */
 #define _ENABLE_TEST15 /* YUV-RGB converter with PVR2D */
+#define _ENABLE_TEST16 /* YUV EGLIMAGE with TI extensions */
 
 #define SGX_PERF_printf dummy_printf
 #define SGX_PERF_ERR_printf printf
@@ -98,6 +107,8 @@ extern unsigned int _fan256x256_rgb565[];
 #define SGXPERF_SURFACE_TYPE_PIXMAP_16 1
 #define SGXPERF_SURFACE_TYPE_PIXMAP_32 2
 
+//TODO - Retrieve page size
+#define PAGE_SIZE  4096
 
 
 //Delta by which rotation happens when rotation is enabled
@@ -130,11 +141,11 @@ int matrixLocation;
 float mat_x[16], mat_y[16], mat_z[16], mat_temp[16], mat_final[16];
 int inTextureWidth = 0;
 int inTextureHeight = 0;
-int inRotationEnabled = 0;
 int inPixelFormat = 0;
 char *inSvgFileName;
 int inNumberOfObjectsPerSide = 1;
 int inSurfaceType;
+int inRotationEnabled = 0;
 int windowWidth, windowHeight;
 int quitSignal = 0;
 int numTestIterations = 0, inFPS=1;
@@ -169,6 +180,7 @@ void set_texture(int width, int height, unsigned char* pTex,
 	if(pixelFormat == SGXPERF_RGB565) numbytes = 2; //RGB565
 	if(pixelFormat == SGXPERF_BYTE8) numbytes = 1; //LUMINANCE
 
+#ifdef _ENABLE_LARGE_HEADER_INCLUDE
 	// _photoframe_pvr_1024x1024 is in ARGB format
 	if(width == 1024 && height == 1024 && numbytes == 4)
 		memcpy(pTex, _photoframe_pvr_1024x1024, width*height*numbytes);
@@ -181,6 +193,7 @@ void set_texture(int width, int height, unsigned char* pTex,
 	else if(width == 256 && height == 256 && numbytes == 1)
 		memcpy(pTex, lena_256x256_8bit, width*height*numbytes);
 	else
+#endif
 	{
 		for(int i = 0;i < width*height*numbytes;i ++)
 			pTex[i] = i;
@@ -485,7 +498,6 @@ int common_init_gl_texcoords(int numObjectsPerSide, GLfloat **textureCoordArray)
 void common_gl_draw(int numObjects)
 {
 	int startIndex = 0;
-	static int alreadyDone = 0;
 	
 	for(int vertical = 0;vertical < numObjects;vertical ++)
 		for(int horizontal = 0;horizontal < numObjects;horizontal ++)
@@ -495,7 +507,6 @@ void common_gl_draw(int numObjects)
 				glGenTextures(1, &textureId0);
 				glBindTexture(GL_TEXTURE_2D, textureId0);
 				add_texture(inTextureWidth, inTextureHeight, textureData, inPixelFormat);
-				alreadyDone = 1;
 			}
 			glDrawArrays(GL_TRIANGLE_STRIP, startIndex, 4);
 			{
@@ -540,79 +551,6 @@ void img_stream_gl_draw(int numObjects)
 			startIndex += 4;
 		}
 }
-//matrix mult
-void calculate_rotation_y(
-	float	*mOut,
-	const float fAngle)
-{
-	float		fCosine, fSine;
-	fCosine =	(float)PVRTFCOS(fAngle);
-    fSine =		(float)PVRTFSIN(fAngle);
-	mOut[ 0]=fCosine;		mOut[ 4]=0.f;	mOut[ 8]=fSine;	mOut[12]=0.0f;
-	mOut[ 1]=0.f;		mOut[ 5]=1.0f;	mOut[ 9]=0.0f;	mOut[13]=0.0f;
-	mOut[ 2]=-fSine;		mOut[ 6]=0.0f;	mOut[10]=fCosine;	mOut[14]=0.0f;
-	mOut[ 3]=0.0f;		mOut[ 7]=0.0f;	mOut[11]=0.0f;	mOut[15]=1.0f;
-}
-
-
-void calculate_rotation_x(
-	float	*mOut,
-	const float fAngle)
-{
-	float		fCosine, fSine;
-	fCosine =	(float)PVRTFCOS(fAngle);
-    fSine =		(float)PVRTFSIN(fAngle);
-	/* Create the trigonometric matrix corresponding to about x */
-	mOut[ 0]=1.0f;		mOut[ 4]=0.0f;	mOut[ 8]=0.0f;	mOut[12]=0.0f;
-	mOut[ 1]=0.0f;		mOut[ 5]=fCosine;	mOut[ 9]=-fSine;	mOut[13]=0.0f;
-	mOut[ 2]=0.0f;		mOut[ 6]=fSine;	mOut[10]=fCosine;	mOut[14]=0.0f;
-	mOut[ 3]=0.0f;		mOut[ 7]=0.0f;	mOut[11]=0.0f;	mOut[15]=1.0f;
-}
-
-
-
-void calculate_rotation_z(
-	float	*mOut,
-	const float fAngle)
-{
-	float		fCosine, fSine;
-	fCosine =	(float)PVRTFCOS(fAngle);
-    fSine =		(float)PVRTFSIN(fAngle);
-	/* Create the trigonometric matrix corresponding to Rotation about z */
-	mOut[ 0]=fCosine;		mOut[ 4]=-fSine;	mOut[ 8]=0.0f;	mOut[12]=0.0f;
-	mOut[ 1]=fSine;		mOut[ 5]=fCosine;	mOut[ 9]=0.0f;	mOut[13]=0.0f;
-	mOut[ 2]=0.0f;		mOut[ 6]=0.0f;	mOut[10]=1.0f;	mOut[14]=0.0f;
-	mOut[ 3]=0.0f;		mOut[ 7]=0.0f;	mOut[11]=0.0f;	mOut[15]=1.0f;
-}
-
-void matrix_mult(
-				 float *mA,
-				 float *mB,
-				 float *mRet
-				 )
-{
-	/* Perform calculation on a dummy matrix (mRet) */
-	mRet[ 0] = mA[ 0]*mB[ 0] + mA[ 1]*mB[ 4] + mA[ 2]*mB[ 8] + mA[ 3]*mB[12];
-	mRet[ 1] = mA[ 0]*mB[ 1] + mA[ 1]*mB[ 5] + mA[ 2]*mB[ 9] + mA[ 3]*mB[13];
-	mRet[ 2] = mA[ 0]*mB[ 2] + mA[ 1]*mB[ 6] + mA[ 2]*mB[10] + mA[ 3]*mB[14];
-	mRet[ 3] = mA[ 0]*mB[ 3] + mA[ 1]*mB[ 7] + mA[ 2]*mB[11] + mA[ 3]*mB[15];
-
-	mRet[ 4] = mA[ 4]*mB[ 0] + mA[ 5]*mB[ 4] + mA[ 6]*mB[ 8] + mA[ 7]*mB[12];
-	mRet[ 5] = mA[ 4]*mB[ 1] + mA[ 5]*mB[ 5] + mA[ 6]*mB[ 9] + mA[ 7]*mB[13];
-	mRet[ 6] = mA[ 4]*mB[ 2] + mA[ 5]*mB[ 6] + mA[ 6]*mB[10] + mA[ 7]*mB[14];
-	mRet[ 7] = mA[ 4]*mB[ 3] + mA[ 5]*mB[ 7] + mA[ 6]*mB[11] + mA[ 7]*mB[15];
-
-	mRet[ 8] = mA[ 8]*mB[ 0] + mA[ 9]*mB[ 4] + mA[10]*mB[ 8] + mA[11]*mB[12];
-	mRet[ 9] = mA[ 8]*mB[ 1] + mA[ 9]*mB[ 5] + mA[10]*mB[ 9] + mA[11]*mB[13];
-	mRet[10] = mA[ 8]*mB[ 2] + mA[ 9]*mB[ 6] + mA[10]*mB[10] + mA[11]*mB[14];
-	mRet[11] = mA[ 8]*mB[ 3] + mA[ 9]*mB[ 7] + mA[10]*mB[11] + mA[11]*mB[15];
-
-	mRet[12] = mA[12]*mB[ 0] + mA[13]*mB[ 4] + mA[14]*mB[ 8] + mA[15]*mB[12];
-	mRet[13] = mA[12]*mB[ 1] + mA[13]*mB[ 5] + mA[14]*mB[ 9] + mA[15]*mB[13];
-	mRet[14] = mA[12]*mB[ 2] + mA[13]*mB[ 6] + mA[14]*mB[10] + mA[15]*mB[14];
-	mRet[15] = mA[12]*mB[ 3] + mA[13]*mB[ 7] + mA[14]*mB[11] + mA[15]*mB[15];
-}
-
 
 static unsigned long
 tv_diff(struct timeval *tv1, struct timeval *tv2)
@@ -742,7 +680,6 @@ void test2()
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
 	int i, err;
-	float angle = 0;
 	float *pVertexArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -753,16 +690,6 @@ void test2()
 	{
 	  SGX_PERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
-		if(inRotationEnabled)
-		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, angle);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
-		}
 
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
@@ -785,7 +712,6 @@ void test3()
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
 	int i, err;
-	float angle = 0;
 	float *pVertexArray, *pTexCoordArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -796,16 +722,6 @@ void test3()
 	{
 	  SGX_PERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
-		if(inRotationEnabled)
-		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, angle);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
-		}
 		//draw first area with texture
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
@@ -830,7 +746,6 @@ void test4()
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
 	int i, err;
-	float angle = 0;
 	float *pVertexArray, *pTexCoordArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -846,16 +761,6 @@ void test4()
 	{
 	  SGX_PERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
-		if(inRotationEnabled)
-		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, 0);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
-		}
 		//some nonsense will come on screen as Alpha data is invalid for the sample
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
@@ -882,7 +787,6 @@ void test5()
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
 	int i, err;
-	float angle = 0;
 
 	glEnable(GL_BLEND);
 	glBlendEquation(GL_FUNC_ADD);
@@ -898,16 +802,6 @@ void test5()
 	{
 	  SGX_PERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
-		if(inRotationEnabled)
-		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, 0);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
-		}
 		common_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
 SGX_PERF_ENDPROFILEUNIT		
@@ -1005,7 +899,6 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
 	int i, err;
-	float angle = 0;
 	float *pVertexArray, *pTexCoordArray;
 
 	//initialise the vertices
@@ -1040,16 +933,6 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 		else
 		{
 			//memset((void*)nativePixmap.lAddress, 5, nativePixmap.lSizeInBytes);
-		}
-		if(inRotationEnabled)
-		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, 0);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
 		}
 		eglimage_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
@@ -1155,7 +1038,6 @@ void test7()
 	unsigned long diffTime2;
 	int err;
 	int i;
-	float angle = 0;
 
 	//initialise gl draw states
 	float *pVertexArray, *pTexCoordArray;
@@ -1184,16 +1066,8 @@ void test7()
 			//memset((void*)nativePixmap.lAddress, 0, nativePixmap.lSizeInBytes);
 		}
 		else
-			//memset((void*)nativePixmap.lAddress, 5, nativePixmap.lSizeInBytes);
-		if(inRotationEnabled)
 		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, 0);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
+			//memset((void*)nativePixmap.lAddress, 5, nativePixmap.lSizeInBytes);
 		}
 		eglimage_gl_draw(inNumberOfObjectsPerSide);
 		common_eglswapbuffers(eglDisplay, eglSurface);
@@ -1354,6 +1228,7 @@ int test8_init_texture_streaming_userptr()
     SGX_PERF_printf("\nStream Device %s: numBuffers = %d, width = %d, height = %d, format = %x\n",
         pszStreamDeviceName, numBuffers, bufferWidth, bufferHeight, bufferFormat);
 
+#ifdef _ENABLE_LARGE_HEADER_INCLUDE
 		if((inTextureWidth == 160) && (inTextureHeight == 128)) //only for 160x128
 			memcpy(virtualAddress, yukio_160x128yuv, 160*128*2);
 		else if((inTextureWidth == 720) && (inTextureHeight == 480)) //for VGA
@@ -1364,6 +1239,7 @@ int test8_init_texture_streaming_userptr()
 			fclose(fp);
 		}
 		else
+#endif
 		{
 			for (int iii= 0; iii < inTextureHeight; iii++)
 				memset(((char *) virtualAddress + (inTextureWidth*iii*2)) , 0xa8, inTextureWidth*2);
@@ -1461,6 +1337,7 @@ int test8_init_texture_streaming()
             return 8;
         }
 
+#ifdef _ENABLE_LARGE_HEADER_INCLUDE
 		if((inTextureWidth == 160) && (inTextureHeight == 128)) //only for 256x256
 			memcpy(buf_vaddr[idx], yukio_160x128yuv, 160*128*2);
 		else if((inTextureWidth == 720) && (inTextureHeight == 480)) //for VGA
@@ -1471,6 +1348,7 @@ int test8_init_texture_streaming()
 			fclose(fp);
 		}
 		else
+#endif
 		{
 			for (int iii= 0; iii < inTextureHeight; iii++)
 				memset(((char *) buf_vaddr[idx] + (inTextureWidth*iii*2)) , 0xa8, inTextureWidth*2);
@@ -1500,7 +1378,6 @@ void test8()
 	int err;
 	static GLfloat texcoord_img[] = 
         {0,0, 1,0, 0,1, 1,1};
-	float angle = 0;
 
 #ifdef _ENABLE_TEST8_NO_USERPTR
 	//initialise texture streaming
@@ -1533,16 +1410,6 @@ void test8()
 	{
 	  SGX_PERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
-		if(inRotationEnabled)
-		{
-			calculate_rotation_z(mat_z, 0);
-			calculate_rotation_y(mat_y, angle);
-			calculate_rotation_x(mat_x, 0);
-			matrix_mult(mat_z, mat_y, mat_temp);
-			matrix_mult(mat_temp, mat_x, mat_final);
-			glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
-			angle += ANGLE_DELTA;
-		}
 
 		myglTexBindStreamIMG(0, bufferIndex);
 		img_stream_gl_draw(inNumberOfObjectsPerSide);
@@ -1566,79 +1433,6 @@ deinit:
 }
 #endif
 
-
-
-#ifdef _ENABLE_TEST9
-/* Fill entire screen with single colour, read and render SVG */
-void test9()
-{
-	timeval startTime, endTime, unitStartTime, unitEndTime;
-	unsigned long diffTime2;
-	int i;
-	CPVRTSVGParser SVGParser;
-	CPVRTSVGObject m_SVGObject;
-	float angle = 0;
-	VGfloat color[4] = { 1.0f, 1.0f, 0.0f, 1.0f }; /* Opaque yellow */
-	PVRTMat3	m_Transform = PVRTMat3::Identity();
-	CPVRTPVGObject* m_pOvgObj;
-	char *tempSvgFilename = (char*)"tiger.svg";
-
-	vgSeti(VG_SCISSORING, VG_FALSE);
-	vgSetfv(VG_CLEAR_COLOR, 4, color);
-
-	vgClear(0, 0, windowWidth, windowHeight);
-
-
-	//Check if default filename needs to be used
-	if((strstr(inSvgFileName,".svg") == 0) && (strstr(inSvgFileName,".pvg") == 0))
-		inSvgFileName=tempSvgFilename;
-
-	//Check if file is SVG or PVG file
-	if(strstr(inSvgFileName, ".svg"))
-	{
-		if(!SVGParser.Load(inSvgFileName, &m_SVGObject, windowWidth, windowHeight))
-		{
-			SGX_PERF_ERR_printf("\nFailed to load svg file.\n"); 
-			exit(-1);
-		}
-
-		gettimeofday(&startTime, NULL);
-		for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
-		{	
-	  SGX_PERF_STARTPROFILEUNIT;		
-			angle += 0.05f;
-			m_Transform.RotationX(angle);
-			m_SVGObject.SetTransformation(&m_Transform);
-			m_SVGObject.Draw();
-			common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT			
-		}
-		gettimeofday(&endTime, NULL);
-	}
-	else
-	{
-		m_pOvgObj = CPVRTPVGObject::FromFile(inSvgFileName);
-		if(!m_pOvgObj)
-		{
-			SGX_PERF_ERR_printf("\nFailed to load pvg file.\n");
-			exit(-1);
-		}
-		gettimeofday(&startTime, NULL);
-		for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
-		{
-	  SGX_PERF_STARTPROFILEUNIT;		
-			vgClear(0, 0, windowWidth, windowHeight);
-			// Draw object
-			m_pOvgObj->Draw();
-			common_eglswapbuffers(eglDisplay, eglSurface);
-SGX_PERF_ENDPROFILEUNIT			
-		}
-		gettimeofday(&endTime, NULL);
-	}
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(9, diffTime2);
-}
-#endif
 
 #ifdef _ENABLE_TEST10
 #include "pvr2d.h"
@@ -1940,8 +1734,6 @@ void test15()
 	//with switching contexts, still drawing to surface1
 	gettimeofday(&startTime, NULL);
 
-
-	unsigned int ret;
 	void* outBuffer = malloc(inTextureWidth*inTextureHeight*2); //always to RGB565 mem buffer only
 	if(!outBuffer) 
 	{	
@@ -1952,7 +1744,7 @@ void test15()
 	for(i = 0;(i < (unsigned int)numTestIterations)&&(!quitSignal);i ++)	
 	{	
 	  SGX_PERF_STARTPROFILEUNIT;	
-		ret = test15_process(
+		test15_process(
 		    textureData,
 		    (void*)outBuffer,
 		    inTextureWidth,
@@ -1973,6 +1765,96 @@ void test15()
 
 	//Free output buffer
 	if(outBuffer) free(outBuffer);	
+}
+#endif
+
+
+#ifdef _ENABLE_TEST16
+typedef void *EGLImageKHR;
+typedef void* GLeglImageOES;
+PFNEGLCREATEIMAGEKHRPROC peglCreateImageKHR;
+PFNEGLDESTROYIMAGEKHRPROC pEGLDestroyImage;
+EGLImageKHR eglImage;
+PFNGLEGLIMAGETARGETTEXTURE2DOESPROC pFnEGLImageTargetTexture2DOES;
+
+#define FOURCC(a, b, c, d) ((uint32_t)(uint8_t)(a) | ((uint32_t)(uint8_t)(b) << 8) | ((uint32_t)(uint8_t)(c) << 16) | ((uint32_t)(uint8_t)(d) << 24 ))
+#define FOURCC_STR(str)    FOURCC(str[0], str[1], str[2], str[3])
+
+
+#ifndef EGL_TI_raw_video
+#  define EGL_TI_raw_video 1
+#  define EGL_RAW_VIDEO_TI					0x333A	/* eglCreateImageKHR target */
+#  define EGL_GL_VIDEO_FOURCC_TI				0x3331	/* eglCreateImageKHR attribute */
+#  define EGL_GL_VIDEO_WIDTH_TI					0x3332	/* eglCreateImageKHR attribute */
+#  define EGL_GL_VIDEO_HEIGHT_TI				0x3333	/* eglCreateImageKHR attribute */
+#  define EGL_GL_VIDEO_BYTE_STRIDE_TI			0x3334	/* eglCreateImageKHR attribute */
+#  define EGL_GL_VIDEO_BYTE_SIZE_TI				0x3335	/* eglCreateImageKHR attribute */
+#  define EGL_GL_VIDEO_YUV_FLAGS_TI				0x3336	/* eglCreateImageKHR attribute */
+#endif
+
+#ifndef EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE
+#  define EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE (0 << 0)
+#  define EGLIMAGE_FLAGS_YUV_FULL_RANGE       (1 << 0)
+#  define EGLIMAGE_FLAGS_YUV_BT601            (0 << 1)
+#  define EGLIMAGE_FLAGS_YUV_BT709            (1 << 1)
+#endif
+
+EGLint eglImageAttributes[] = {
+            EGL_GL_VIDEO_FOURCC_TI,      FOURCC_STR("YUYV"),
+            EGL_GL_VIDEO_WIDTH_TI,       inTextureWidth,
+            EGL_GL_VIDEO_HEIGHT_TI,      inTextureHeight,
+            EGL_GL_VIDEO_BYTE_STRIDE_TI, inTextureWidth*2,
+            EGL_GL_VIDEO_BYTE_SIZE_TI,   inTextureWidth*inTextureHeight*2,
+            // TODO: pick proper YUV flags..
+            EGL_GL_VIDEO_YUV_FLAGS_TI,   EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE |
+            EGLIMAGE_FLAGS_YUV_BT601,
+            EGL_NONE
+    };
+
+void test16()
+{
+	int i, err;
+	//Allocate memory for the YUV texture input buffer
+	char* yuvbuff = (char*)malloc(inTextureWidth*inTextureHeight*2+PAGE_SIZE);
+	yuvbuff -= ((unsigned int)yuvbuff & (PAGE_SIZE-1));
+	
+	memset(yuvbuff, 0, sizeof(yuvbuff));
+	peglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
+	pFnEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
+	pEGLDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
+	//Create the eglimage
+	eglImage = peglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI, yuvbuff, eglImageAttributes);
+	if(eglImage == EGL_NO_IMAGE_KHR)
+	{
+		SGX_PERF_printf("EGLImage not created, err = %x\n", eglGetError());
+		return;
+	}
+	
+	//Create the texture
+	glGenTextures(1, &textureId0);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureId0);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//Specify the target
+	pFnEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, eglImage);
+	//Draw loop
+        float *pVertexArray, *pTexCoordArray;
+        common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
+        common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+
+        for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
+	{
+                common_gl_draw(inNumberOfObjectsPerSide);
+                common_eglswapbuffers(eglDisplay, eglSurface);
+        }
+        err = glGetError();
+        if(err)
+                SGX_PERF_ERR_printf("Error in gldraw err = %x", err);
+        common_deinit_gl_vertices(pVertexArray);
+        common_deinit_gl_texcoords(pTexCoordArray);
+	
+	pEGLDestroyImage(eglDisplay, eglImage);
+	
 }
 #endif
 
@@ -2139,13 +2021,14 @@ testID = ID of test case to run, takes one of the below values: \n\
 		6 - EGL_NATIVE_PIXMAP_KHR (needs CMEM) \n\
 		7 - EGL_GL_TEXTURE_2D_KHR (needs CMEM)\n\
 		8 - GL_IMG_texture_stream (needs CMEM, BUFFERCLASS_TI)\n\
-		9 - OpenVG SVG/PVG performance test (needs svg/pvgfile name) \n\
+		9 - OpenVG SVG/PVG performance test (==deprecated==) \n\
 		10 - PVR2D copyblit benchmark test \n\
 		11 - Lenna Edge Detection benchmark test \n\
 		12 - Edge detection (test8) \n\
 		13 - Line drawing \n\
 		14 - Context switch \n\
 		15 - YUV-RGB converter - PVR2D \n\
+		16 - YUV-streaming EGLImage \n\
 texwdth = width in pixels of input texture \n\
 texht = height in pixels of input texture \n\
 rot = 1 to enable rotation of objects, 0 to disable (default) \n\
@@ -2200,6 +2083,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		inTextureHeight = atol(argv[3]);
 	}
 	inRotationEnabled = 0;
+	//Rotation is unused in latest version
 	if(argc >= 5)
 		inRotationEnabled = atol(argv[4]);
 	inPixelFormat = 0;
@@ -2367,11 +2251,6 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
     glUseProgram(uiProgramObject);
 	//set rotation variables to init
 	matrixLocation = glGetUniformLocation(uiProgramObject, "MVPMatrix");
-	calculate_rotation_z(mat_z, 0);
-	calculate_rotation_y(mat_y, 0);
-	calculate_rotation_x(mat_x, 0);
-	matrix_mult(mat_z, mat_y, mat_temp);
-	matrix_mult(mat_temp, mat_x, mat_final);
 	glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
 	
 	/* Set rowsize for edge detect */
@@ -2403,11 +2282,11 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 				test1();
 				break;
 			case 2:
-				/* Draw a coloured triangle filling entire screen */
+				/* Draw a coloured rectangle filling entire screen */
 				test2();
 				break;
 			case 3:
-				/* Move a coloured triangle of half screen size to another half with same parameters */
+				/* Move a coloured rectangle of half screen size to another half with same parameters */
 				test3();
 				break;
 			case 4:
@@ -2446,8 +2325,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 #endif
 				break;
 			case 9:
-				/* SVG file test */
-				test9();
+				/* SVG file test - Deprecated */
 				break;
 			case 10:
 				/* PVR2D test */
