@@ -2251,6 +2251,8 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
     glUseProgram(uiProgramObject);
 	//set rotation variables to init
 	matrixLocation = glGetUniformLocation(uiProgramObject, "MVPMatrix");
+	memset(mat_final, 0, sizeof(mat_final));
+	mat_final[0] = mat_final[5] = mat_final[10] = mat_final[15] = 1.0;
 	glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
 	
 	/* Set rowsize for edge detect */
