@@ -115,6 +115,7 @@ extern unsigned int _fan256x256_rgb565[];
 #define ANGLE_DELTA 0.02f
 
 // dynamically allocated data FOR variable size texture
+unsigned int *_textureData = 0;
 unsigned int *textureData = 0;
 
 //common to all test cases (with or without textures)
@@ -561,6 +562,7 @@ tv_diff(struct timeval *tv1, struct timeval *tv2)
 
 static void common_log(int testid, unsigned long time)
 {
+	SGXPERF_ERR_printf("id\twidth\theight\trotation\tpixelformat\tsurface\tnumobjects\ttimeper_frame(ms)\n");
 	SGXPERF_ERR_printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%ld\n", 
 							testid, 
 							inTextureWidth, 
@@ -570,6 +572,7 @@ static void common_log(int testid, unsigned long time)
               inSurfaceType,
 							inNumberOfObjectsPerSide,
 							time);
+#if 0
   //Also log to files required by xgxperf
   //Get CPU load
   system("sh getload.sh");
@@ -642,8 +645,8 @@ static void common_log(int testid, unsigned long time)
               CPULoad,
               inFPS);
   fclose(htmlfile);
-  //No screendump as no compressor is available for now							
-							
+  //No screendump as no compressor is available for now	
+#endif			
 }
 
 
@@ -1800,31 +1803,34 @@ PFNGLEGLIMAGETARGETTEXTURE2DOESPROC pFnEGLImageTargetTexture2DOES;
 #endif
 
 EGLint eglImageAttributes[] = {
-            EGL_GL_VIDEO_FOURCC_TI,      FOURCC_STR("NV12"),
-            EGL_GL_VIDEO_WIDTH_TI,       inTextureWidth,
-            EGL_GL_VIDEO_HEIGHT_TI,      inTextureHeight,
-            EGL_GL_VIDEO_BYTE_STRIDE_TI, inTextureWidth*2,
-            EGL_GL_VIDEO_BYTE_SIZE_TI,   inTextureWidth*inTextureHeight*2,
-            // TODO: pick proper YUV flags..
-            EGL_GL_VIDEO_YUV_FLAGS_TI,   EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE |
-            EGLIMAGE_FLAGS_YUV_BT601,
-            EGL_NONE
+	//NV12 is ridiculously slow
+	EGL_GL_VIDEO_FOURCC_TI,      FOURCC_STR("YUYV"),
+	EGL_GL_VIDEO_WIDTH_TI,       0,
+	EGL_GL_VIDEO_HEIGHT_TI,      0,
+	EGL_GL_VIDEO_BYTE_STRIDE_TI, 0,
+	EGL_GL_VIDEO_BYTE_SIZE_TI,   0,
+	// TODO: pick proper YUV flags..
+	EGL_GL_VIDEO_YUV_FLAGS_TI,   EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE |
+		EGLIMAGE_FLAGS_YUV_BT601,
+	EGL_NONE
     };
 
 void test16()
 {
 	int i, err;
-	//Allocate memory for the YUV texture input buffer
-	char* yuvbuff = (char*)malloc(inTextureWidth*inTextureHeight*2+PAGE_SIZE);
-	yuvbuff += (PAGE_SIZE - ((unsigned int)yuvbuff & (PAGE_SIZE-1)));
-	SGXPERF_ERR_printf("yuvbuff = %x\n", (unsigned int)yuvbuff);
-	memset(yuvbuff, 0, inTextureWidth*inTextureHeight*2+PAGE_SIZE);
+        timeval startTime, endTime;
+        unsigned long diffTime2;
+
+	eglImageAttributes[3] = inTextureWidth;
+	eglImageAttributes[5] = inTextureHeight;
+	eglImageAttributes[7] = inTextureWidth * 2;
+	eglImageAttributes[9] = inTextureWidth*inTextureHeight*2;
 
 	peglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
 	pFnEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	pEGLDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
 	//Create the eglimage
-	eglImage = peglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI, yuvbuff, eglImageAttributes);
+	eglImage = peglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI, textureData, eglImageAttributes);
 	if(eglImage == EGL_NO_IMAGE_KHR)
 	{
 		SGXPERF_ERR_printf("EGLImage not created, err = %x\n", eglGetError());
@@ -1843,27 +1849,33 @@ void test16()
         common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
         common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
 
+
+       gettimeofday(&startTime, NULL);
         for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
 	{
-                common_gl_draw(inNumberOfObjectsPerSide);
+                eglimage_gl_draw(inNumberOfObjectsPerSide);
                 common_eglswapbuffers(eglDisplay, eglSurface);
-        }
-        err = glGetError();
-        if(err)
-	{
-                SGXPERF_ERR_printf("Error in gldraw err = %x\n", err);
+        	err = glGetError();
+	        if(err)
+		{
+	                SGXPERF_ERR_printf("Error in gldraw err = %x\n", err);
+		}
+	        err = eglGetError();
+	        if(err != 0x3000)
+		{
+	                SGXPERF_ERR_printf("Error in egl err = %x\n", err);
+		}
 	}
-        err = eglGetError();
-        if(err)
-	{
-                SGXPERF_ERR_printf("Error in egl err = %x\n", err);
-	}
+        gettimeofday(&endTime, NULL);
+        diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
+        common_log(1, diffTime2);
+
 
         common_deinit_gl_vertices(pVertexArray);
         common_deinit_gl_texcoords(pTexCoordArray);
 	
 	pEGLDestroyImage(eglDisplay, eglImage);
-        SGXPERF_ERR_printf("finished test16\n");
+        SGXPERF_ERR_printf("INFO: finished test16 - running at max fps\n");
 }
 #endif
 
@@ -1885,6 +1897,7 @@ int main(int argc, char **argv)
 {
 	int testID = 0, err; //default
 	char *extensions;
+	unsigned int delta;
 	NATIVE_PIXMAP_STRUCT* pNativePixmap = NULL;
 
 
@@ -1926,7 +1939,7 @@ int main(int argc, char **argv)
 				gl_FragColor = textureStreamIMG(sTexture, TexCoord); \
 			 }";
 	const char* pszFragEGLImageShader = "\
-			#extension GL_OES_EGL_image_external : enable \
+			#extension GL_OES_EGL_image_external : enable \n \
 			uniform samplerExternalOES yuvTexSampler;\
 			varying mediump vec2 TexCoord; \
 			void main(void) \
@@ -2026,8 +2039,8 @@ const	char* pszFragEdgeRGBDetectShader = "\
 			TexCoord = inTexCoord;\
 		}";
 
-	const char *helpString = \
-"TI SGX OpenGLES2.0+VG Benchmarking Program For Linux. \n\
+	const char* helpString = \
+"TI SGX OpenGLES2.0 Benchmarking Program For Linux. \n\
 Usage: sgxperf2 testID texwdth texht rot texfmt svgfile numObjects surfaceType numIter fps cookie\n\
 testID = ID of test case to run, takes one of the below values: \n\
         0 - Print supported extensions and number \n\
@@ -2064,14 +2077,14 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	if(argc < 11)
 	{
 		SGXPERF_ERR_printf("Error: Invalid number of operands \n\n");
-		SGXPERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
 	testID = atol(argv[1]);
 	if(testID > MAX_TEST_ID || testID < 0)
 	{
 		SGXPERF_ERR_printf("Error: No test available with this ID %d\n\n", testID);
-		SGXPERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
 	inNumberOfObjectsPerSide = atol(argv[7]);
@@ -2082,7 +2095,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		if(testID > 2) //1 and 2 do not need textures
 		{
 			SGXPERF_ERR_printf("Error: Invalid number of operands for selected testID %d\n\n", testID);
-			SGXPERF_ERR_printf(helpString);
+			SGXPERF_ERR_printf("%s",helpString);
 			exit(-1);
 		}
 	}
@@ -2101,7 +2114,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	if(inPixelFormat != SGXPERF_RGB565 && inPixelFormat != SGXPERF_ARGB8888 && inPixelFormat != SGXPERF_BYTE8)
 	{
 		SGXPERF_ERR_printf("Error: Unsupported pixel format for texture %d \n\n", inPixelFormat);
-		SGXPERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
   
@@ -2114,7 +2127,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	if((inTextureWidth > 8000) || (inTextureHeight > 8000))
 	{
 		SGXPERF_ERR_printf("Error: Width or Height exceeds 8000 \n\n");
-		SGXPERF_ERR_printf(helpString);
+		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
 #ifndef _ENABLE_CMEM
@@ -2149,9 +2162,17 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 #endif
 
 	//Allocate texture for use in GL texturing modes(can also be done from CMEM if memory permits
-	textureData = (unsigned int*)malloc(inTextureWidth*inTextureHeight*4);
-	if(!textureData)
+	_textureData = (unsigned int*)malloc(inTextureWidth*inTextureHeight*4 + PAGE_SIZE);
+	if(!_textureData)
+	{
 		SGXPERF_ERR_printf("ERROR: No malloc memory for allocating texture!\n");
+		goto cleanup;
+	}
+	delta =(PAGE_SIZE - ((unsigned int)_textureData &
+(PAGE_SIZE-1))); 
+	textureData = (unsigned int*)((char*)_textureData + delta);
+	memset(textureData, 0, inTextureWidth*inTextureHeight*4);
+
 	set_texture(inTextureWidth, inTextureHeight, (unsigned char*)textureData, inPixelFormat);
 
 	//initialise egl
@@ -2262,7 +2283,14 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	}
 
 	// Actually use the created program
-    glUseProgram(uiProgramObject);
+	glUseProgram(uiProgramObject);
+#ifdef _ENABLE_TEST16
+	if(testID == 16)
+	{
+		int sampler = glGetUniformLocation(uiProgramObject, "yuvTexSampler");
+		glUniform1i(sampler, 0);
+	}
+#endif
 	//set rotation variables to init
 	matrixLocation = glGetUniformLocation(uiProgramObject, "MVPMatrix");
 	memset(mat_final, 0, sizeof(mat_final));
@@ -2291,7 +2319,9 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 		{
 			case 0:
 				extensions = (char*)glGetString(GL_EXTENSIONS);
-				SGXPERF_ERR_printf("\nTESTID = 0: SUPPORTED EXTENSIONS = \n%s\n", extensions);
+				SGXPERF_ERR_printf("\nTESTID = 0: GL SUPPORTED EXTENSIONS = \n%s\n", extensions);
+                                extensions = (char*)eglQueryString(eglDisplay, EGL_EXTENSIONS);
+                                SGXPERF_ERR_printf("\nTESTID = 0: EGL SUPPORTED EXTENSIONS = \n%s\n", extensions);
 				break;
 			case 1:
 				/* Fill entire screen with single colour, no objects */
@@ -2407,8 +2437,8 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	glDeleteShader(uiVertShader);
 
 cleanup:
-	if(textureData) 
-		free(textureData);
+	if(_textureData) 
+		free(_textureData);
 	common_egldeinit(testID, pNativePixmap);
 #ifdef _ENABLE_CMEM
 	CMEM_exit();
