@@ -1,7 +1,7 @@
 # Makefile to build sgxperf
 # Usage - 'SGXPERF_SDKDIR=<GraphicsSDK path> make'
 # For OGLES2.0 performance validation on Linux
-# (c) TEXAS INSTRUMENTS, 2013
+# (c) TEXAS INSTRUMENTS, 2009
 # prabu@ti.com
 
 .PHONY: clean
@@ -24,7 +24,7 @@ _ENABLE_CMEM = 0
 #CMEM_PATH = /home/prabu/cmem
 
 #for native compilation, comment this
-CROSS_COMPILE=arm-linux-gnueabi-
+CROSS_COMPILE=arm-linux-gnueabihf-
 
 PLAT_CC  = $(CROSS_COMPILE)gcc
 PLAT_CPP = $(CROSS_COMPILE)g++

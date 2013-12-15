@@ -61,7 +61,7 @@ extern unsigned int _fan256x256_rgb565[];
 #endif
 
 
-#define MAX_TEST_ID 16 //Max number of available tests
+#define MAX_TEST_ID 17 //Max number of available tests
 #define SGXPERF_VERSION 1.1
 
 #define _ENABLE_TEST1 /* Fill entire screen with single colour, no objects */
@@ -84,6 +84,7 @@ extern unsigned int _fan256x256_rgb565[];
 #define _ENABLE_TEST14 /* multi surface context switch */
 #define _ENABLE_TEST15 /* YUV-RGB converter with PVR2D */
 #define _ENABLE_TEST16 /* YUV EGLIMAGE with TI extensions */
+#define _ENABLE_TEST17 /* FBO */
 
 #define SGXPERF_printf dummy_printf
 #define SGXPERF_ERR_printf printf
@@ -1886,6 +1887,80 @@ void sgxperf_signal_handler(int reason)
   quitSignal = 1; 
 }
 
+#ifdef _ENABLE_TEST17
+void gl_fbo_draw(int numObjects)
+{
+	int startIndex = 0;
+	
+	for(int vertical = 0;vertical < numObjects;vertical ++)
+		for(int horizontal = 0;horizontal < numObjects;horizontal ++)
+		{
+			glDrawArrays(GL_TRIANGLE_STRIP, startIndex, 4);
+			startIndex += 4;
+		}
+}
+/* Texturing using glteximage2d */ 
+void _test17()
+{
+	timeval startTime, endTime, unitStartTime, unitEndTime;
+	unsigned long diffTime2;
+	int i, err;
+	float *pVertexArray, *pTexCoordArray;
+
+	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
+	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+
+	gettimeofday(&startTime, NULL);
+	  SGXPERF_STARTPROFILEUNIT;	
+		glClear(GL_COLOR_BUFFER_BIT);
+		//draw first area with texture
+		common_gl_draw(inNumberOfObjectsPerSide);
+		common_eglswapbuffers(eglDisplay, eglSurface);
+SGXPERF_ENDPROFILEUNIT		
+
+	err = glGetError();
+	if(err)
+		SGXPERF_ERR_printf("Error in gldraw err = %x", err);		
+	gettimeofday(&endTime, NULL);
+	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
+	common_log(3, diffTime2);
+
+	common_deinit_gl_vertices(pVertexArray);
+	common_deinit_gl_texcoords(pTexCoordArray);
+}
+
+#define NUM_FBO 10
+void test17()
+{
+  int i;
+  GLuint fboId[NUM_FBO];
+  GLuint textureId[NUM_FBO];
+  glGenFramebuffers(NUM_FBO, fboId);
+  glGenTextures(NUM_FBO, textureId);
+  for(i = 0;i < NUM_FBO;i ++)
+  {
+    glBindTexture(GL_TEXTURE_2D, textureId[i]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, inTextureWidth, inTextureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, fboId[i]);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId[i], 0);
+	
+	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) goto err;
+    //Draw with regular draw calls to FBO
+	_test17();
+	//Now get back display framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//draw
+	_test17();
+  }
+err:  
+  glDeleteFramebuffers(NUM_FBO, fboId);
+  glDeleteTextures(NUM_FBO, textureId);  
+}
+#endif
+
 /*!****************************************************************************
  @Function		main
  @Input			argc		Number of arguments
@@ -2060,6 +2135,7 @@ testID = ID of test case to run, takes one of the below values: \n\
 		14 - Context switch \n\
 		15 - YUV-RGB converter - PVR2D \n\
 		16 - YUV-streaming EGLImage \n\
+		17 - FBO \n\
 texwdth = width in pixels of input texture \n\
 texht = height in pixels of input texture \n\
 rot = 1 to enable rotation of objects, 0 to disable (default) \n\
@@ -2191,7 +2267,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 
 	// Load the source code into it
 	if((testID == 3) || (testID == 5) || (testID == 6) || (testID == 7)  || 
-        (testID == 14))
+        (testID == 14) || (testID == 17))
 		glShaderSource(uiFragShader, 1, (const char**)&pszFragTextureShader, NULL);
 	else if(testID == 11) //Edge detect with RGB input
 		glShaderSource(uiFragShader, 1, (const char**)&pszFragEdgeRGBDetectShader, NULL);
@@ -2231,7 +2307,7 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	uiVertShader = glCreateShader(GL_VERTEX_SHADER);
 	if((testID == 3) || (testID == 5) || (testID == 6) || (testID == 7) || 
         (testID == 8) || (testID == 11) || (testID == 12)
-           || (testID == 14) || (testID == 16))
+           || (testID == 14) || (testID == 16) || (testID == 17))
 		glShaderSource(uiVertShader, 1, (const char**)&pszVertTextureShader, NULL);
 	else
 	{
@@ -2407,6 +2483,12 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 			case 16:
 				/* YUV-Streaming with EGLImage */
 				test16();
+				break;
+#endif
+#ifdef _ENABLE_TEST17
+			case 17:
+				/* FBO */
+				test17();
 				break;
 #endif
 			default:
