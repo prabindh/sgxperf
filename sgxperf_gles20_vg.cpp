@@ -1899,65 +1899,80 @@ void gl_fbo_draw(int numObjects)
 			startIndex += 4;
 		}
 }
+
 /* Texturing using glteximage2d */ 
 void _test17()
 {
-	timeval startTime, endTime, unitStartTime, unitEndTime;
+	timeval startTime, endTime;
 	unsigned long diffTime2;
-	int i, err;
+	int err;
 	float *pVertexArray, *pTexCoordArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
 	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
 
 	gettimeofday(&startTime, NULL);
-	  SGXPERF_STARTPROFILEUNIT;	
-		glClear(GL_COLOR_BUFFER_BIT);
-		//draw first area with texture
-		common_gl_draw(inNumberOfObjectsPerSide);
-		common_eglswapbuffers(eglDisplay, eglSurface);
-SGXPERF_ENDPROFILEUNIT		
+
+	glClear(GL_COLOR_BUFFER_BIT);
+	//draw first area with texture
+	gl_fbo_draw(inNumberOfObjectsPerSide);
+	common_eglswapbuffers(eglDisplay, eglSurface);
 
 	err = glGetError();
 	if(err)
-		SGXPERF_ERR_printf("Error in gldraw err = %x", err);		
+		SGXPERF_ERR_printf("Error in gldraw err = %x\n", err);		
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(3, diffTime2);
+	common_log(17, diffTime2);
 
 	common_deinit_gl_vertices(pVertexArray);
 	common_deinit_gl_texcoords(pTexCoordArray);
 }
 
-#define NUM_FBO 10
+#define NUM_FBO 1
 void test17()
 {
-  int i;
-  GLuint fboId[NUM_FBO];
-  GLuint textureId[NUM_FBO];
-  glGenFramebuffers(NUM_FBO, fboId);
-  glGenTextures(NUM_FBO, textureId);
-  for(i = 0;i < NUM_FBO;i ++)
-  {
-    glBindTexture(GL_TEXTURE_2D, textureId[i]);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, inTextureWidth, inTextureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	
-	glBindFramebuffer(GL_FRAMEBUFFER, fboId[i]);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId[i], 0);
-	
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) goto err;
-    //Draw with regular draw calls to FBO
-	_test17();
-	//Now get back display framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//draw
-	_test17();
-  }
+	int i;
+	GLuint fboId[NUM_FBO];
+	GLuint textureId[NUM_FBO];
+	glGenFramebuffers(NUM_FBO, fboId);
+	glGenTextures(NUM_FBO, textureId);
+
+	if(inNumberOfObjectsPerSide > NUM_FBO) inNumberOfObjectsPerSide = NUM_FBO;
+
+	for(i = 0;i < inNumberOfObjectsPerSide;i ++)
+	{
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		glBindTexture(GL_TEXTURE_2D, textureId[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, inTextureWidth, inTextureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, fboId[i]);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId[i], 0);
+
+		if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("FB is not complete for rendering\n");
+			goto err;
+		}
+		 //Draw with regular draw calls to FBO
+		_test17();
+		//Now get back display framebuffer and unbind
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+		//bind to texture
+		glBindTexture(GL_TEXTURE_2D, textureId[i]);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		//draw
+		_test17();
+	}
 err:  
-  glDeleteFramebuffers(NUM_FBO, fboId);
-  glDeleteTextures(NUM_FBO, textureId);  
+	glDeleteFramebuffers(NUM_FBO, fboId);
+	glDeleteTextures(NUM_FBO, textureId);  
 }
 #endif
 
