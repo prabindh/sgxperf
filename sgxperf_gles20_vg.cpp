@@ -21,6 +21,7 @@ v0.32 - Added Line drawing test (test13)
 v0.33 - Added context switch (test14)
 v0.34 - Added PVR2D YUV-RGB (test15)
 v0.35 - Jun 2013 - Added eglImage-YUV tests (test16)
+v0.36 - Dec 2013 - Added FBO tests (test17)
 
 Latest code and information can be obtained from
 http://github.com/prabindh/sgxperf
@@ -43,8 +44,6 @@ Prabindh Sundareson prabu@ti.com
 #include "gl2ext.h"
 #include "eglext.h"
 
-
-
 #include "math.h"
 
 #ifdef _ENABLE_CMEM
@@ -60,6 +59,12 @@ extern unsigned int _fan256x256_argb[];
 extern unsigned int _fan256x256_rgb565[];
 #endif
 
+#define GL_CHECK(x) \
+		{	\
+			x; \
+			int err = glGetError(); \
+			printf("GL Error = %x for %s\n", err, (char*)(#x)); \
+		}
 
 #define MAX_TEST_ID 17 //Max number of available tests
 #define SGXPERF_VERSION 1.1
@@ -435,8 +440,7 @@ int common_init_gl_vertices(int numObjectsPerSide, GLfloat **vertexArray)
 	//	printf("vertex=%f %f %f\n", afVertices[temp], afVertices[temp + 1], afVertices[temp + 2] );
 
 	glEnableVertexAttribArray(VERTEX_ARRAY);
-	glVertexAttribPointer(VERTEX_ARRAY, 3, GL_FLOAT, GL_FALSE, 0, (const void*)afVertices);
-
+	GL_CHECK(glVertexAttribPointer(VERTEX_ARRAY, 3, GL_FLOAT, GL_FALSE, 0, (const void*)afVertices));
 	return 0;
 }
 
@@ -491,7 +495,8 @@ int common_init_gl_texcoords(int numObjectsPerSide, GLfloat **textureCoordArray)
 	//	printf("vertex=%f %f\n", afVertices[temp], afVertices[temp + 1]);
 
 	glEnableVertexAttribArray(TEXCOORD_ARRAY);
-	glVertexAttribPointer(TEXCOORD_ARRAY, 2, GL_FLOAT, GL_FALSE, 0, (const void*)afVertices);
+	GL_CHECK(glVertexAttribPointer(TEXCOORD_ARRAY, 2, GL_FLOAT, GL_FALSE, 0, (const void*)afVertices));
+
 
 	return 0;
 }
@@ -683,7 +688,7 @@ void test2()
 {
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
-	int i, err;
+	int i;
 	float *pVertexArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -701,9 +706,7 @@ void test2()
 	}
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	err = glGetError();
-	if(err)
-		SGXPERF_ERR_printf("Error in gldraw err = %x", err);	
+	
 
 	common_deinit_gl_vertices(pVertexArray);
 	common_log(2, diffTime2);
@@ -715,7 +718,7 @@ void test3()
 {
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
-	int i, err;
+	int i;
 	float *pVertexArray, *pTexCoordArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -731,9 +734,7 @@ void test3()
 		common_eglswapbuffers(eglDisplay, eglSurface);
 SGXPERF_ENDPROFILEUNIT		
 	}
-	err = glGetError();
-	if(err)
-		SGXPERF_ERR_printf("Error in gldraw err = %x", err);		
+		
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(3, diffTime2);
@@ -749,7 +750,7 @@ void test4()
 {
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
-	int i, err;
+	int i;
 	float *pVertexArray, *pTexCoordArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -770,9 +771,7 @@ void test4()
 		common_eglswapbuffers(eglDisplay, eglSurface);
 SGXPERF_ENDPROFILEUNIT		
 	}
-	err = glGetError();
-	if(err)
-		SGXPERF_ERR_printf("Error in gldraw err = %x", err);
+
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(4, diffTime2);
@@ -790,7 +789,7 @@ void test5()
 {
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
-	int i, err;
+	int i;
 
 	glEnable(GL_BLEND);
 	glBlendEquation(GL_FUNC_ADD);
@@ -810,9 +809,7 @@ void test5()
 		common_eglswapbuffers(eglDisplay, eglSurface);
 SGXPERF_ENDPROFILEUNIT		
 	}
-	err = glGetError();
-	if(err)
-		SGXPERF_ERR_printf("Error in gldraw err = %x", err);
+
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(5, diffTime2);
@@ -1897,15 +1894,14 @@ void gl_fbo_draw(int numObjects)
 		{
 			glDrawArrays(GL_TRIANGLE_STRIP, startIndex, 4);
 			startIndex += 4;
-		}
+		}	
 }
 
 /* Texturing using glteximage2d */ 
-void _test17()
+void _test17(int offscreen)
 {
 	timeval startTime, endTime;
 	unsigned long diffTime2;
-	int err;
 	float *pVertexArray, *pTexCoordArray;
 
 	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
@@ -1913,14 +1909,14 @@ void _test17()
 
 	gettimeofday(&startTime, NULL);
 
-	glClear(GL_COLOR_BUFFER_BIT);
+	GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
 	//draw first area with texture
-	gl_fbo_draw(inNumberOfObjectsPerSide);
-	common_eglswapbuffers(eglDisplay, eglSurface);
+	GL_CHECK(gl_fbo_draw(inNumberOfObjectsPerSide));
+	if(offscreen)
+		glFlush();
+	else
+		common_eglswapbuffers(eglDisplay, eglSurface);
 
-	err = glGetError();
-	if(err)
-		SGXPERF_ERR_printf("Error in gldraw err = %x\n", err);		
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
 	common_log(17, diffTime2);
@@ -1930,49 +1926,69 @@ void _test17()
 }
 
 #define NUM_FBO 1
+
 void test17()
 {
 	int i;
 	GLuint fboId[NUM_FBO];
-	GLuint textureId[NUM_FBO];
+	GLuint fboTextureId[NUM_FBO];
+	GLuint regularTextureId;
+
 	glGenFramebuffers(NUM_FBO, fboId);
-	glGenTextures(NUM_FBO, textureId);
+	//fbo texture
+	glGenTextures(NUM_FBO, fboTextureId);
+	//Regular first texture
+	glGenTextures(1, &regularTextureId);
 
 	if(inNumberOfObjectsPerSide > NUM_FBO) inNumberOfObjectsPerSide = NUM_FBO;
 
 	for(i = 0;i < inNumberOfObjectsPerSide;i ++)
 	{
-		glBindTexture(GL_TEXTURE_2D, 0);
+		//Bind offscreen texture
+		GL_CHECK(glBindTexture(GL_TEXTURE_2D, 0));
+		GL_CHECK(glBindTexture(GL_TEXTURE_2D, fboTextureId[i]));
+		GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, inTextureWidth, inTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL));
+		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 
-		glBindTexture(GL_TEXTURE_2D, textureId[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, inTextureWidth, inTextureHeight, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, fboId[i]);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId[i], 0);
+		GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, fboId[i]));
+		GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTextureId[i], 0));
 
 		if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			printf("FB is not complete for rendering\n");
+			printf("FB is not complete for rendering offscreen\n");
 			goto err;
 		}
+		//Bind regular texture
+		GL_CHECK(glBindTexture(GL_TEXTURE_2D, 0));
+		GL_CHECK(glBindTexture(GL_TEXTURE_2D, regularTextureId));
+		add_texture(inTextureWidth, inTextureHeight, textureData, inPixelFormat);
+		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 		 //Draw with regular draw calls to FBO
-		_test17();
-		//Now get back display framebuffer and unbind
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+		GL_CHECK(_test17(1));
+
+		//Now get back display framebuffer and unbind the FBO
+		GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0));
+		if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("FB is not complete for rendering to display\n");
+			goto err;
+		}
 		//bind to texture
-		glBindTexture(GL_TEXTURE_2D, textureId[i]);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		//draw
-		_test17();
+		GL_CHECK(glBindTexture(GL_TEXTURE_2D, 0));
+		GL_CHECK(glBindTexture(GL_TEXTURE_2D, fboTextureId[i]));
+
+		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+		//draw to display buffer
+		_test17(0);
 	}
 err:  
 	glDeleteFramebuffers(NUM_FBO, fboId);
-	glDeleteTextures(NUM_FBO, textureId);  
+	glDeleteTextures(NUM_FBO, fboTextureId);  
+	glDeleteTextures(1, &regularTextureId);  
 }
 #endif
 
@@ -2161,7 +2177,7 @@ surfaceType = type of surface(0 = WindowSurface, 1 = pixmapSurface_16b, 2 = pixm
 numIterations = number of iterations (> 0)\n\
 fps = Target frames per second \n\
 cookie = unique number for running this instance of the test (any number > 0) \n\
-Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 times, enter \
+Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 times, enter \n\
 './sgxperf2 3 256 256 0 2 0 1 0 100 30 1234'\n";
 
 	/* Pre init step - check the arguments */
