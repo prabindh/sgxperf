@@ -1934,6 +1934,13 @@ void test17()
 	GLuint fboTextureId[NUM_FBO];
 	GLuint regularTextureId;
 
+	//sanity checks
+	if(inPixelFormat != SGXPERF_ARGB8888)
+	{
+		SGXPERF_ERR_printf("TEST17 can currently only be run with ARGB888!");
+		exit(-1);
+	}
+
 	glGenFramebuffers(NUM_FBO, fboId);
 	//fbo texture
 	glGenTextures(NUM_FBO, fboTextureId);
@@ -2166,7 +2173,7 @@ testID = ID of test case to run, takes one of the below values: \n\
 		14 - Context switch \n\
 		15 - YUV-RGB converter - PVR2D \n\
 		16 - YUV-streaming EGLImage \n\
-		17 - FBO \n\
+		17 - FBO (ARGB format only) \n\
 texwdth = width in pixels of input texture \n\
 texht = height in pixels of input texture \n\
 rot = 1 to enable rotation of objects, 0 to disable (default) \n\
@@ -2267,7 +2274,6 @@ Ex. to test TEST3 with 256x256 32bit texture on LCD with 1 object at 30 fps 100 
 	SGXPERF_printf("Configuring CMEM\n");
 	CMEM_init();
 #endif
-
 	//Allocate texture for use in GL texturing modes(can also be done from CMEM if memory permits
 	_textureData = (unsigned int*)malloc(inTextureWidth*inTextureHeight*4 + PAGE_SIZE);
 	if(!_textureData)
