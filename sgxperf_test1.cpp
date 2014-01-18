@@ -17,7 +17,7 @@
 /* Fill entire screen with single colour, no objects */
 void test1(struct globalStruct *globals)
 {
-	timeval startTime, endTime, unitStartTime, unitEndTime;
+	timeval startTime, endTime;
 	unsigned long diffTime2;
 	int i;
 	gettimeofday(&startTime, NULL);
@@ -27,12 +27,12 @@ void test1(struct globalStruct *globals)
 	  SGXPERF_STARTPROFILEUNIT;	
 		glClearColor(0.2f, 0.4f, 0.8f, 1.0f); // clear blue
 		glClear(GL_COLOR_BUFFER_BIT);
-		common_eglswapbuffers(globals->eglDisplay, globals>eglSurface);
+		common_eglswapbuffers(globals, globals->eglDisplay, globals->eglSurface);
     SGXPERF_ENDPROFILEUNIT;		
 	}
 	gettimeofday(&endTime, NULL);
 	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
-	common_log(1, diffTime2);
+	common_log(globals, 1, diffTime2);
 }
 #endif
 
