@@ -65,7 +65,7 @@ bool TestEGLError(const char* pszLocation)
 
 	return true;
 }
-static int dummy_printf(const char* format, ...)
+int dummy_printf(const char* format, ...)
 {
 	return 0;
 }
@@ -179,19 +179,16 @@ void common_delete_native_pixmap(
 }
 
 //egl init
-int common_eglinit(int testID, int surfaceType, NATIVE_PIXMAP_STRUCT** pNativePixmapPtr)
+int common_eglinit(struct globalStruct* globals, int testID, int surfaceType, NATIVE_PIXMAP_STRUCT** pNativePixmapPtr)
 {
 	EGLint iMajorVersion, iMinorVersion;
 	EGLint ai32ContextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
-	eglDisplay = eglGetDisplay((int)0);
+	globals->eglDisplay = eglGetDisplay((int)0);
 
-	if (!eglInitialize(eglDisplay, &iMajorVersion, &iMinorVersion))
+	if (!eglInitialize(globals->eglDisplay, &iMajorVersion, &iMinorVersion))
 		return 1;
 
-	if(testID == 9)
-		eglBindAPI(EGL_OPENVG_API);
-	else
-		eglBindAPI(EGL_OPENGL_ES_API);
+	eglBindAPI(EGL_OPENGL_ES_API);
 	if (!TestEGLError("eglBindAPI"))
 		return 1;
 
@@ -199,34 +196,31 @@ int common_eglinit(int testID, int surfaceType, NATIVE_PIXMAP_STRUCT** pNativePi
 	pi32ConfigAttribs[0] = EGL_SURFACE_TYPE;
 	pi32ConfigAttribs[1] = EGL_WINDOW_BIT | EGL_PIXMAP_BIT;
 	pi32ConfigAttribs[2] = EGL_RENDERABLE_TYPE;
-	if(testID == 9)
-		pi32ConfigAttribs[3] = EGL_OPENVG_BIT;
-	else
-		pi32ConfigAttribs[3] = EGL_OPENGL_ES2_BIT;
+	pi32ConfigAttribs[3] = EGL_OPENGL_ES2_BIT;
 	pi32ConfigAttribs[4] = EGL_NONE;
 
 	int iConfigs;
-	if (!eglChooseConfig(eglDisplay, pi32ConfigAttribs, &eglConfig, 1, &iConfigs) || (iConfigs != 1))
+	if (!eglChooseConfig(globals->eglDisplay, pi32ConfigAttribs, &globals->eglConfig, 1, &iConfigs) || (iConfigs != 1))
 	{
 		SGXPERF_ERR_printf("Error: eglChooseConfig() failed.\n");
 		return 1;
 	}
 	if(surfaceType == SGXPERF_SURFACE_TYPE_WINDOW)
-		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, (void*) NULL, NULL);
+		globals->eglSurface = eglCreateWindowSurface(globals->eglDisplay, globals->eglConfig, (void*) NULL, NULL);
 	else if(surfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16)
 	{
 		common_create_native_pixmap(SGXPERF_RGB565, 
-						inTextureWidth, inTextureHeight, pNativePixmapPtr);
-		eglSurface = eglCreatePixmapSurface(eglDisplay, eglConfig, *pNativePixmapPtr, NULL);
+						globals->inTextureWidth, globals->inTextureHeight, pNativePixmapPtr);
+		globals->eglSurface = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, *pNativePixmapPtr, NULL);
 	}
 	else if(surfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
 	{
 		common_create_native_pixmap(SGXPERF_ARGB8888, 
-						inTextureWidth, inTextureHeight, pNativePixmapPtr);
-		eglSurface = eglCreatePixmapSurface(eglDisplay, eglConfig, *pNativePixmapPtr, NULL);
+						globals->inTextureWidth, globals->inTextureHeight, pNativePixmapPtr);
+		globals->eglSurface = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, *pNativePixmapPtr, NULL);
 	}
-  else  
-    return 999;
+  	else  
+	    return 999;
 
 	if (!TestEGLError("eglCreateSurface"))
 		return 1;
@@ -234,55 +228,53 @@ int common_eglinit(int testID, int surfaceType, NATIVE_PIXMAP_STRUCT** pNativePi
 	if(testID == 14) //Create one pixmap surface for context switch latency check
 	{
 		common_create_native_pixmap(SGXPERF_RGB565, 
-						inTextureWidth, inTextureHeight, pNativePixmapPtr);
-		eglSurface2 = eglCreatePixmapSurface(eglDisplay, eglConfig, *pNativePixmapPtr, NULL);
+						globals->inTextureWidth, globals->inTextureHeight, pNativePixmapPtr);
+		globals->eglSurface2 = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, *pNativePixmapPtr, NULL);
 	}  	
 	if (!TestEGLError("eglCreateSurface"))
 		return 1;		
 
-	if(testID == 9)
-		eglContext = eglCreateContext(eglDisplay, eglConfig, NULL, NULL);
-	else
-		eglContext = eglCreateContext(eglDisplay, eglConfig, NULL, ai32ContextAttribs);
+	globals->eglContext = eglCreateContext(globals->eglDisplay, globals->eglConfig, NULL, ai32ContextAttribs);
 	if (!TestEGLError("eglCreateContext"))
 		return 1;
 
-	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+	eglMakeCurrent(globals->eglDisplay, globals->eglSurface, globals->eglSurface, globals->eglContext);
 	if (!TestEGLError("eglMakeCurrent"))
 		return 1;
 
-	eglSwapInterval(eglDisplay, 1);
+	eglSwapInterval(globals->eglDisplay, 1);
 	if (!TestEGLError("eglSwapInterval"))
 		return 1;
 
-	eglQuerySurface(eglDisplay, eglSurface, EGL_WIDTH, &windowWidth);
-	eglQuerySurface(eglDisplay, eglSurface, EGL_HEIGHT, &windowHeight);
+	eglQuerySurface(globals->eglDisplay, globals->eglSurface, EGL_WIDTH, &globals->windowWidth);
+	eglQuerySurface(globals->eglDisplay, globals->eglSurface, EGL_HEIGHT, &globals->windowHeight);
 	
-	SGXPERF_printf("Window width=%d, Height=%d\n", windowWidth, windowHeight);
+	SGXPERF_printf("Window width=%d, Height=%d\n", globals->windowWidth, globals->windowHeight);
 
 	return 0;
 }
-void common_egldeinit(int testID, NATIVE_PIXMAP_STRUCT* pNativePixmap)
+void common_egldeinit(struct globalStruct *globals, int testID, NATIVE_PIXMAP_STRUCT* pNativePixmap)
 {
-	eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT) ;
+	eglMakeCurrent(globals->eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT) ;
 	if(pNativePixmap)
 		common_delete_native_pixmap(pNativePixmap);
-	eglDestroyContext(eglDisplay, eglContext);
-	eglDestroySurface(eglDisplay, eglSurface);
+	eglDestroyContext(globals->eglDisplay, globals->eglContext);
+	eglDestroySurface(globals->eglDisplay, globals->eglSurface);
 	if(testID == 14)
-	  eglDestroySurface(eglDisplay, eglSurface2);	
-	eglTerminate(eglDisplay);
+	  eglDestroySurface(globals->eglDisplay, globals->eglSurface2);	
+	eglTerminate(globals->eglDisplay);
 }
 
 //swapping buffers
 void common_eglswapbuffers(
+			struct globalStruct *globals,
 						   EGLDisplay eglDisplay, 
 						   EGLSurface eglSurface
 						   )
 {
-	if(inSurfaceType == SGXPERF_SURFACE_TYPE_WINDOW)
+	if(globals->inSurfaceType == SGXPERF_SURFACE_TYPE_WINDOW)
 		eglSwapBuffers(eglDisplay, eglSurface);
-	else if(inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
+	else if(globals->inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || globals->inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
 		eglWaitGL();
 }
 //Vertices init
@@ -388,7 +380,7 @@ int common_init_gl_texcoords(int numObjectsPerSide, GLfloat **textureCoordArray)
 }
 //Common function to draw the previously input vertices
 //Texture mapping if needed, has to be done before
-void common_gl_draw(int numObjects)
+void common_gl_draw(struct globalStruct *globals, int numObjects)
 {
 	int startIndex = 0;
 	
@@ -397,13 +389,13 @@ void common_gl_draw(int numObjects)
 		{
 			{
 				// Create and Bind texture
-				glGenTextures(1, &textureId0);
-				glBindTexture(GL_TEXTURE_2D, textureId0);
-				add_texture(inTextureWidth, inTextureHeight, textureData, inPixelFormat);
+				glGenTextures(1, &globals->textureId0);
+				glBindTexture(GL_TEXTURE_2D, globals->textureId0);
+				add_texture(globals->inTextureWidth, globals->inTextureHeight, globals->textureData, globals->inPixelFormat);
 			}
 			glDrawArrays(GL_TRIANGLE_STRIP, startIndex, 4);
 			{
-				glDeleteTextures(1, &textureId0);
+				glDeleteTextures(1, &globals->textureId0);
 			}
 			
 			startIndex += 4;
@@ -451,17 +443,17 @@ tv_diff(struct timeval *tv1, struct timeval *tv2)
         (tv2->tv_usec - tv1->tv_usec) / 1000;
 }
 
-void common_log(int testid, unsigned long time)
+void common_log(struct globalStruct *globals, int testid, unsigned long time)
 {
 	SGXPERF_ERR_printf("id\twidth\theight\trotation\tpixelformat\tsurface\tnumobjects\ttimeper_frame(ms)\n");
 	SGXPERF_ERR_printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%ld\n", 
 							testid, 
-							inTextureWidth, 
-							inTextureHeight, 
-							inRotationEnabled, 
-							inPixelFormat,
-              inSurfaceType,
-							inNumberOfObjectsPerSide,
+							globals->inTextureWidth, 
+							globals->inTextureHeight, 
+							globals->inRotationEnabled, 
+							globals->inPixelFormat,
+					              globals->inSurfaceType,
+							globals->inNumberOfObjectsPerSide,
 							time);		
 }
 
@@ -474,7 +466,7 @@ void common_log(int testid, unsigned long time)
 void sgxperf_signal_handler(int reason) 
 { 
   SGXPERF_ERR_printf("\nGot quit signal - Results will be inaccurate!\n"); 
-  quitSignal = 1; 
+  gTest.quitSignal = 1; 
 }
 
 
@@ -494,8 +486,6 @@ int main(int argc, char **argv)
 	NATIVE_PIXMAP_STRUCT* pNativePixmap = NULL;
 
 
-
-
 	/* Initialise all globals */
 	initialise_globals(&gTest);
 
@@ -513,8 +503,8 @@ int main(int argc, char **argv)
 		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
-	inNumberOfObjectsPerSide = atol(argv[7]);
-	inSurfaceType = atol(argv[8]);
+	gTest.inNumberOfObjectsPerSide = atol(argv[7]);
+	gTest.inSurfaceType = atol(argv[8]);
 
 	if(argc < 4)
 	{
@@ -527,38 +517,38 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		inTextureWidth = atol(argv[2]);
-		inTextureHeight = atol(argv[3]);
+		gTest.inTextureWidth = atol(argv[2]);
+		gTest.inTextureHeight = atol(argv[3]);
 	}
-	inRotationEnabled = 0;
+	gTest.inRotationEnabled = 0;
 	//Rotation is unused in latest version
 	if(argc >= 5)
-		inRotationEnabled = atol(argv[4]);
-	inPixelFormat = 0;
+		gTest.inRotationEnabled = atol(argv[4]);
+	gTest.inPixelFormat = 0;
 	if(argc >= 6)
-		inPixelFormat = atol(argv[5]);
-	if(inPixelFormat != SGXPERF_RGB565 && inPixelFormat != SGXPERF_ARGB8888 && inPixelFormat != SGXPERF_BYTE8)
+		gTest.inPixelFormat = atol(argv[5]);
+	if(gTest.inPixelFormat != SGXPERF_RGB565 && gTest.inPixelFormat != SGXPERF_ARGB8888 && gTest.inPixelFormat != SGXPERF_BYTE8)
 	{
-		SGXPERF_ERR_printf("Error: Unsupported pixel format for texture %d \n\n", inPixelFormat);
+		SGXPERF_ERR_printf("Error: Unsupported pixel format for texture %d \n\n", gTest.inPixelFormat);
 		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
   
   //read extra params
-  numTestIterations = atol(argv[9]);
-  inFPS =atol(argv[10]); 
-  msToSleep = 1000/inFPS;
-  cookie = argv[11];
+  gTest.numTestIterations = atol(argv[9]);
+  gTest.inFPS =atol(argv[10]); 
+  gTest.msToSleep = 1000/gTest.inFPS;
+  gTest.cookie = argv[11];
     
-	if((inTextureWidth > 8000) || (inTextureHeight > 8000))
+	if((gTest.inTextureWidth > 8000) || (gTest.inTextureHeight > 8000))
 	{
 		SGXPERF_ERR_printf("Error: Width or Height exceeds 8000 \n\n");
 		SGXPERF_ERR_printf("%s",helpString);
 		exit(-1);
 	}
 #ifndef _ENABLE_CMEM
-	if(testID == 6 || testID == 7 || inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || 
-                                    inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
+	if(testID == 6 || testID == 7 || gTest.inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || 
+                                    gTest.inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
 	{
 		SGXPERF_ERR_printf("ERROR: Cannot run native pixmap tests without CMEM\n");
 		exit(-1);
@@ -572,7 +562,7 @@ int main(int argc, char **argv)
 	}
 #endif
 	//for pixmap related tests, surface cannot be pixmap
-	if(testID == 6 && inSurfaceType != SGXPERF_SURFACE_TYPE_WINDOW)
+	if(testID == 6 && gTest.inSurfaceType != SGXPERF_SURFACE_TYPE_WINDOW)
 	{
 		SGXPERF_ERR_printf("ERROR: Cannot run native pixmap eglimage test with pixmap surface\n");
 		goto cleanup;
@@ -587,21 +577,21 @@ int main(int argc, char **argv)
 	CMEM_init();
 #endif
 	//Allocate texture for use in GL texturing modes(can also be done from CMEM if memory permits
-	_textureData = (unsigned int*)malloc(inTextureWidth*inTextureHeight*4 + PAGE_SIZE);
-	if(!_textureData)
+	gTest._textureData = (unsigned int*)malloc(gTest.inTextureWidth*gTest.inTextureHeight*4 + PAGE_SIZE);
+	if(!gTest._textureData)
 	{
 		SGXPERF_ERR_printf("ERROR: No malloc memory for allocating texture!\n");
 		goto cleanup;
 	}
-	delta =(PAGE_SIZE - ((unsigned int)_textureData &
+	delta =(PAGE_SIZE - ((unsigned int)gTest._textureData &
 (PAGE_SIZE-1))); 
-	textureData = (unsigned int*)((char*)_textureData + delta);
-	memset(textureData, 0, inTextureWidth*inTextureHeight*4);
+	gTest.textureData = (unsigned int*)((char*)gTest._textureData + delta);
+	memset(gTest.textureData, 0, gTest.inTextureWidth*gTest.inTextureHeight*4);
 
-	set_texture(inTextureWidth, inTextureHeight, (unsigned char*)textureData, inPixelFormat);
+	set_texture(gTest.inTextureWidth, gTest.inTextureHeight, (unsigned char*)gTest.textureData, gTest.inPixelFormat);
 
 	//initialise egl
-	err = common_eglinit(testID, inSurfaceType, &pNativePixmap);
+	err = common_eglinit(&gTest, testID, gTest.inSurfaceType, &pNativePixmap);
 	if(err)
 	{
 		SGXPERF_ERR_printf("ERROR: eglinit - err = %d\n", err);
@@ -717,10 +707,10 @@ int main(int argc, char **argv)
 	}
 #endif
 	//set rotation variables to init
-	matrixLocation = glGetUniformLocation(uiProgramObject, "MVPMatrix");
-	memset(mat_final, 0, sizeof(mat_final));
-	mat_final[0] = mat_final[5] = mat_final[10] = mat_final[15] = 1.0;
-	glUniformMatrix4fv( matrixLocation, 1, GL_FALSE, mat_final);
+	gTest.matrixLocation = glGetUniformLocation(uiProgramObject, "MVPMatrix");
+	memset(gTest.mat_final, 0, sizeof(gTest.mat_final));
+	gTest.mat_final[0] = gTest.mat_final[5] = gTest.mat_final[10] = gTest.mat_final[15] = 1.0;
+	glUniformMatrix4fv( gTest.matrixLocation, 1, GL_FALSE, gTest.mat_final);
 	
 	/* Set rowsize for edge detect */
 	if(testID == 11)
@@ -745,7 +735,7 @@ int main(int argc, char **argv)
 			case 0:
 				extensions = (char*)glGetString(GL_EXTENSIONS);
 				SGXPERF_ERR_printf("\nTESTID = 0: GL SUPPORTED EXTENSIONS = \n%s\n", extensions);
-                                extensions = (char*)eglQueryString(eglDisplay, EGL_EXTENSIONS);
+                                extensions = (char*)eglQueryString(gTest.eglDisplay, EGL_EXTENSIONS);
                                 SGXPERF_ERR_printf("\nTESTID = 0: EGL SUPPORTED EXTENSIONS = \n%s\n", extensions);
 				break;
 			case 1:
@@ -754,90 +744,66 @@ int main(int argc, char **argv)
 				break;
 			case 2:
 				/* Draw a coloured rectangle filling entire screen */
-				test2();
+				test2(&gTest);
 				break;
 			case 3:
 				/* Move a coloured rectangle of half screen size to another half with same parameters */
-				test3();
+				test3(&gTest);
 				break;
 			case 4:
 				/* Alpha blending full surface texture */
-				test4();	
+				test4(&gTest);	
 				break;
 			case 5:
 				/* Alpha blending full surface WITHOUT texture */
-				test5();
-				break;
-			case 6:
-#ifdef _ENABLE_TEST6
-				/* EGL_NATIVE_PIXMAP_KHR */
-				//Create native pixmap with CMEM
-        //Note that this pixmap object is for a texture, not surface
-				common_create_native_pixmap(inPixelFormat, 
-						inTextureWidth, inTextureHeight, &pNativePixmap);
-				//copy to it with native pixel format
-				set_texture(pNativePixmap->lWidth, pNativePixmap->lHeight, 
-						(unsigned char*)pNativePixmap->lAddress, inPixelFormat);
-				test6(pNativePixmap);
-				common_delete_native_pixmap(pNativePixmap);
-				pNativePixmap = NULL;
-#endif
-				break;
-			case 7:
-#ifdef _ENABLE_TEST7
-				/* EGL_GL_TEXTURE_2D_KHR */
-				test7();
-#endif
+				test5(&gTest);
 				break;
 			case 8:
 #ifdef _ENABLE_TEST8
 				/* GL_IMG_texture_stream */
-				test8();
+				test8(&gTest);
 #endif
-				break;
-			case 9:
-				/* SVG file test - Deprecated */
 				break;
 			case 10:
 				/* PVR2D test */
-				test10();
+				test10(&gTest);
 				break;
 			case 11:
 				/* Edge detection test - test3 with new shader */
-				test3();
+				test3(&gTest);
 				break;
 #ifdef _ENABLE_TEST8
 			case 12:
 				/* Edge detection test - test8 with new shader */
-				test8();
+				test8(&gTest);
 				break;
 #endif
 			case 13:
 				/* Line drawing */
-				test13();
+				test13(&gTest);
 				break;
 #ifdef _ENABLE_TEST14				
 			case 14:
 				/* Context Switch */
-				test14();
+				test14(&gTest);
 				break;
 #endif				
 #ifdef _ENABLE_TEST15
 			case 15:
 				/* YUV-RGB conversion with PVR2D */
-				test15();
+				test15(&gTest);
 				break;
 #endif
 #ifdef _ENABLE_TEST16
 			case 16:
 				/* YUV-Streaming with EGLImage */
-				test16();
+				test16(&gTest);
 				break;
 #endif
 #ifdef _ENABLE_TEST17
 			case 17:
 				/* FBO */
-				test17();
+				test17(&gTest);
 				break;
 #endif
 			default:
@@ -847,17 +813,17 @@ int main(int argc, char **argv)
 		}
 #ifdef _ENABLE_CMEM
 	/* PIXMAP loopback test  */
-	if(inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32) 
+	if(gTest.inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16 || gTest.inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32) 
 	{
 #if 1
 		/* Use this for checking out the output in the pixmap */
 		/* For DEBUGGING ONLY */
 		FILE *fp = fopen("pixmap.raw", "wb");
 		int numbytes;
-		if(inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32) numbytes = 4; //ARGB8888
-		if(inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16) numbytes = 2; //RGB565
+		if(gTest.inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32) numbytes = 4; //ARGB8888
+		if(gTest.inSurfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16) numbytes = 2; //RGB565
 		SGXPERF_ERR_printf("Writing pixmap data to file pixmap.raw\n");
-		fwrite((void*)pNativePixmap->lAddress, 1, inTextureWidth*inTextureHeight*numbytes, fp);
+		fwrite((void*)pNativePixmap->lAddress, 1, gTest.inTextureWidth*gTest.inTextureHeight*numbytes, fp);
 		fclose(fp);
 #endif
 	}
@@ -868,9 +834,9 @@ int main(int argc, char **argv)
 	glDeleteShader(uiVertShader);
 
 cleanup:
-	if(_textureData) 
-		free(_textureData);
-	common_egldeinit(testID, pNativePixmap);
+	if(gTest._textureData) 
+		free(gTest._textureData);
+	common_egldeinit(&gTest, testID, pNativePixmap);
 #ifdef _ENABLE_CMEM
 	CMEM_exit();
 #endif

@@ -18,12 +18,6 @@
 #define _ENABLE_TEST3 /* glTexImage2D based texturing */
 #define _ENABLE_TEST4 /* Alpha blending full surface texture */
 #define _ENABLE_TEST5 /* Alpha blending full surface WITHOUT texture */
-#ifdef _ENABLE_CMEM
-#define _ENABLE_TEST6 /* EGL_NATIVE_PIXMAP_KHR */
-#define _ENABLE_TEST7 /* EGL_GL_TEXTURE_2D_KHR */
-#else
-#define _ENABLE_TEST8_NO_USERPTR
-#endif //CMEM tests
 
 #ifdef _ENABLE_BUFFERCLASS
 #define _ENABLE_TEST8 /* GL_IMG_texture_stream */
@@ -38,11 +32,8 @@
 #define SGXPERF_printf dummy_printf
 #define SGXPERF_ERR_printf printf
 
-#define SGXPERF_STARTPROFILEUNIT {gettimeofday(&unitStartTime, NULL);}  
-#define SGXPERF_ENDPROFILEUNIT {gettimeofday(&unitEndTime, NULL);\
-	   if(msToSleep > tv_diff(&startTime, &endTime)) \
-      usleep((msToSleep - tv_diff(&startTime, &endTime))/1000); }		
-
+#define SGXPERF_STARTPROFILEUNIT {}
+#define SGXPERF_ENDPROFILEUNIT {}
 
 // Index to bind the attributes to vertex shaders
 #define VERTEX_ARRAY 0
@@ -77,7 +68,7 @@ typedef struct _NATIVE_PIXMAP_STRUCT
     long lAddress;
 }NATIVE_PIXMAP_STRUCT;
 
-typedef struct globalStruct
+struct globalStruct
 {
 	EGLConfig eglConfig;
 	EGLDisplay eglDisplay;
@@ -112,35 +103,39 @@ typedef struct globalStruct
 
 /* Functions */
 void test1(struct globalStruct *globals);
-void test2();
-void test3();
-void test4();
-void test5();
-void test6();
-void test7();
-void test8();
-void test9();
-void test10();
-void test11();
-void test12();
-void test13();
-void test14();
-void test15();
-void test16();
-void test17();
+void test2(struct globalStruct *globals);
+void test3(struct globalStruct *globals);
+void test4(struct globalStruct *globals);
+void test5(struct globalStruct *globals);
+void test6(struct globalStruct *globals);
+void test7(struct globalStruct *globals);
+void test8(struct globalStruct *globals);
+void test10(struct globalStruct *globals);
+void test11(struct globalStruct *globals);
+void test12(struct globalStruct *globals);
+void test13(struct globalStruct *globals);
+void test14(struct globalStruct *globals);
+void test15(struct globalStruct *globals);
+void test16(struct globalStruct *globals);
+void test17(struct globalStruct *globals);
 
+int dummy_printf(const char* format, ...);
 void common_eglswapbuffers(
+			struct globalStruct *globals,
 						   EGLDisplay eglDisplay, 
 						   EGLSurface eglSurface
 						   );
 int common_init_gl_vertices(int numObjectsPerSide, GLfloat **vertexArray);
 void common_deinit_gl_vertices(GLfloat *vertexArray);
 int common_init_gl_texcoords(int numObjectsPerSide, GLfloat **textureCoordArray);
-void common_gl_draw(int numObjects);
+void common_deinit_gl_texcoords(GLfloat *pTexCoordArray);
+void common_gl_draw(struct globalStruct *globals, int numObjects);
 void eglimage_gl_draw(int numObjects);
 void img_stream_gl_draw(int numObjects);
-void common_log(int testid, unsigned long time);
+void common_log(struct globalStruct *globals, int testid, unsigned long time);
 unsigned long tv_diff(struct timeval *tv1, struct timeval *tv2);
+
+void add_texture(int width, int height, void* data, int pixelFormat);
 
 extern const char* pszFragNoTextureShader;
 extern const char* pszVertNoTextureShader;
