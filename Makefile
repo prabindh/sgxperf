@@ -23,7 +23,7 @@ _ENABLE_CMEM = 0
 #################################################
 #CMEM_PATH = /home/prabu/cmem
 
-#for native compilation, comment this
+#for native compilation, comment this out
 CROSS_COMPILE=arm-linux-gnueabihf-
 
 PLAT_CC  = $(CROSS_COMPILE)gcc
@@ -42,22 +42,25 @@ PLAT_CFLAGS += -D_ENABLE_CMEM
 endif
 
 PLAT_OBJPATH = ./$(PLATFORM)/
-PLAT_LINK =  $(LIBDIR_FLAGS) -lEGL -lGLESv2 -lm -ldl
+PLAT_LINK =  $(LIBDIR_FLAGS) -lEGL -lGLESv2 -lm -ldl -lpvr2d
 
-SRCNAME = sgxperf_gles20_vg
+COMMON_INCLUDES=-I$(SGXPERF_SDKDIR)/include/OGLES2 -I$(SGXPERF_SDKDIR)/include/wsegl -I$(SGXPERF_SDKDIR)/include/pvr2d -I$(SGXPERF_SDKDIR)/include/bufferclass_ti -I$(SGXPERF_SDKDIR)/include/OGLES2/GLES2 -I$(SGXPERF_SDKDIR)/include/OGLES2/EGL
 
-OUTNAME = sgxperf2
+PLAT_CFLAGS += $(COMMON_INCLUDES)
 
-OBJECTS = $(PLAT_OBJPATH)/$(SRCNAME).o
+SRCNAME = $(wildcard *.cpp)
+OBJECTS = $(PLAT_OBJPATH)/$(SRCNAME:.cpp=.o)
 
-OBJECTS2=
+OUTNAME = sgxperf3
+
 ifeq "$(_ENABLE_CMEM)" "1"
 OBJECTS2 = $(CMEM_PATH)/lib/cmem.a470MV
 endif
 
-COMMON_INCLUDES=-I$(SGXPERF_SDKDIR)/include/OGLES2 -I$(SGXPERF_SDKDIR)/include/wsegl -I$(SGXPERF_SDKDIR)/include/pvr2d -I$(SGXPERF_SDKDIR)/include/bufferclass_ti -I$(SGXPERF_SDKDIR)/include/OGLES2/GLES2 -I$(SGXPERF_SDKDIR)/include/OGLES2/EGL
-
-PVR2D_LINK = -lpvr2d
+test1: $(SRCNAME)
+#	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+	mkdir -p $(PLAT_OBJPATH)
+	$(PLAT_CPP) -o $@ $^ $(PLAT_CFLAGS) $(LINK) $(PLAT_LINK)
 
 $(PLAT_OBJPATH)/$(OUTNAME) : $(OBJECTS) 
 	mkdir -p $(PLAT_OBJPATH)

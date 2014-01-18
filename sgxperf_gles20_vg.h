@@ -77,8 +77,41 @@ typedef struct _NATIVE_PIXMAP_STRUCT
     long lAddress;
 }NATIVE_PIXMAP_STRUCT;
 
+typedef struct globalStruct
+{
+	EGLConfig eglConfig;
+	EGLDisplay eglDisplay;
+	EGLSurface eglSurface;
+	EGLSurface eglSurface2;
+	EGLContext eglContext;
+	GLuint textureId0;
+	int matrixLocation;
+	float mat_x[16];
+	float mat_y[16];
+	float mat_z[16];
+	float mat_temp[16];
+	float mat_final[16];
+	int inTextureWidth;
+	int inTextureHeight;
+	int inPixelFormat;
+	char *inSvgFileName;
+	int inNumberOfObjectsPerSide;
+	int inSurfaceType;
+	int inRotationEnabled;
+	int windowWidth;
+	int windowHeight;
+	int quitSignal;
+	int numTestIterations;
+	int inFPS;
+	unsigned int msToSleep;
+	char* cookie;
+	unsigned int *_textureData;
+	unsigned int *textureData;
+};
+
+
 /* Functions */
-void test1();
+void test1(struct globalStruct *globals);
 void test2();
 void test3();
 void test4();
@@ -109,6 +142,15 @@ void img_stream_gl_draw(int numObjects);
 void common_log(int testid, unsigned long time);
 unsigned long tv_diff(struct timeval *tv1, struct timeval *tv2);
 
+extern const char* pszFragNoTextureShader;
+extern const char* pszVertNoTextureShader;
+extern const char* pszFragTextureShader;
+extern const char* pszFragIMGTextureStreamShader;
+extern const char* pszFragEGLImageShader;
+extern const char* pszFragEdgeYUVDetectShader;
+extern const char* pszFragEdgeRGBDetectShader;
+extern const char* pszVertTextureShader;
+extern const char* helpString;
 
 
 #endif //_ENABLE_SGXPERF_GLES20_VG_H
