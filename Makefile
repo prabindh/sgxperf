@@ -1,7 +1,7 @@
 # Makefile to build sgxperf
 # Usage - 'SGXPERF_SDKDIR=<GraphicsSDK path> make'
 # For OGLES2.0 performance validation on Linux
-# (c) TEXAS INSTRUMENTS, 2009
+# (c) TEXAS INSTRUMENTS, 2009-2014
 # prabu@ti.com
 
 .PHONY: clean
@@ -10,7 +10,7 @@ ifeq "$(SGXPERF_SDKDIR)" ""
 $(error "ERROR: SGXPERF_SDKDIR not defined (ex. export SGXPERF_SDKDIR=<Path to Graphics SDK>)!")
 endif
 
-PLATFORM=335x-release
+PLATFORM=release
 LIBDIR=$(SGXPERF_SDKDIR)/gfx_rel_es8.x
 
 #################################################
@@ -44,7 +44,7 @@ endif
 PLAT_OBJPATH = ./$(PLATFORM)/
 PLAT_LINK =  $(LIBDIR_FLAGS) -lEGL -lGLESv2 -lm -ldl -lpvr2d
 
-COMMON_INCLUDES=-I$(SGXPERF_SDKDIR)/include/OGLES2 -I$(SGXPERF_SDKDIR)/include/wsegl -I$(SGXPERF_SDKDIR)/include/pvr2d -I$(SGXPERF_SDKDIR)/include/bufferclass_ti -I$(SGXPERF_SDKDIR)/include/OGLES2/GLES2 -I$(SGXPERF_SDKDIR)/include/OGLES2/EGL
+COMMON_INCLUDES=-I$(SGXPERF_SDKDIR)/include/OGLES2 -I$(SGXPERF_SDKDIR)/include/wsegl -I$(SGXPERF_SDKDIR)/include/pvr2d -I$(SGXPERF_SDKDIR)/include/bufferclass_ti -I$(SGXPERF_SDKDIR)/include/OGLES2/GLES2 -I$(SGXPERF_SDKDIR)/include/OGLES2/EGL -I$(SGXPERF_SDKDIR)/GFX_Linux_KM/include4
 
 PLAT_CFLAGS += $(COMMON_INCLUDES)
 
@@ -57,24 +57,10 @@ ifeq "$(_ENABLE_CMEM)" "1"
 OBJECTS2 = $(CMEM_PATH)/lib/cmem.a470MV
 endif
 
-test1: $(SRCNAME)
-#	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+$(PLAT_OBJPATH)/$(OUTNAME): $(SRCNAME)
 	mkdir -p $(PLAT_OBJPATH)
 	$(PLAT_CPP) -o $@ $^ $(PLAT_CFLAGS) $(LINK) $(PLAT_LINK)
 
-$(PLAT_OBJPATH)/$(OUTNAME) : $(OBJECTS) 
-	mkdir -p $(PLAT_OBJPATH)
-	$(PLAT_CPP) -o $(PLAT_OBJPATH)/$(OUTNAME) $(OBJECTS) $(OBJECTS1) $(OBJECTS2) $(LINK) $(PLAT_LINK) $(PVR2D_LINK)
-
-$(PLAT_OBJPATH)/%.o: %.cpp 
-	mkdir -p $(PLAT_OBJPATH)
-	$(PLAT_CC) $(PLAT_CFLAGS) -c $(COMMON_INCLUDES) $(INCLUDES) $^ -o $@
-
-$(PLAT_OBJPATH)/%.o: %.c 
-	mkdir -p $(PLAT_OBJPATH)
-	$(PLAT_CC) $(PLAT_CFLAGS) -c $(COMMON_INCLUDES) $(INCLUDES) $^ -o $@
-
 clean:
 	rm -rf $(PLAT_OBJPATH) *.o
-
 
