@@ -14,36 +14,36 @@
 #include "math.h"
 
 #ifdef _ENABLE_TEST14
-void test14()
+void test14(struct globalStruct *globals)
 {
-	timeval startTime, endTime, unitStartTime, unitEndTime;
+	timeval startTime, endTime;
 	unsigned long diffTime2;
 	int i, err;
 	float *pVertexArray, *pTexCoordArray;
 
-	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
-	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+	common_init_gl_vertices(globals->inNumberOfObjectsPerSide, &pVertexArray);
+	common_init_gl_texcoords(globals->inNumberOfObjectsPerSide, &pTexCoordArray);
 
 	//with switching contexts, still drawing to surface1
 	gettimeofday(&startTime, NULL);
-	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)	
+	for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++)	
 	{	
 	  SGXPERF_STARTPROFILEUNIT;	
 	  //Switch to surface 2
-	  eglMakeCurrent(eglDisplay, eglSurface2, eglSurface2, eglContext);		
+	  eglMakeCurrent(globals->eglDisplay, globals->eglSurface2, globals->eglSurface2, globals->eglContext);		
 	  //Switch back to surface 1 and draw to surface 1
-	  eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);		
+	  eglMakeCurrent(globals->eglDisplay, globals->eglSurface, globals->eglSurface, globals->eglContext);		
 		glClear(GL_COLOR_BUFFER_BIT);		
-		common_gl_draw(inNumberOfObjectsPerSide);
-		common_eglswapbuffers(eglDisplay, eglSurface);
+		common_gl_draw(globals, globals->inNumberOfObjectsPerSide);
+		common_eglswapbuffers(globals, globals->eglDisplay, globals->eglSurface);
 	  SGXPERF_ENDPROFILEUNIT;    		
 	}
 	err = glGetError();
 	if(err)
 		SGXPERF_ERR_printf("Error in gldraw err = %x", err);		
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(14, diffTime2);
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+	common_log(globals, 14, diffTime2);
 
 	common_deinit_gl_vertices(pVertexArray);
 	common_deinit_gl_texcoords(pTexCoordArray);

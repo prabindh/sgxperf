@@ -14,9 +14,9 @@
 #include "math.h"
 #ifdef _ENABLE_TEST5
 /* Draw frames WITH-OUT texturing one above other with blending */
-void test5()
+void test5(struct globalStruct *globals)
 {
-	timeval startTime, endTime, unitStartTime, unitEndTime;
+	timeval startTime, endTime;
 	unsigned long diffTime2;
 	int i;
 
@@ -26,22 +26,22 @@ void test5()
 
 	float *pVertexArray, *pTexCoordArray;
 
-	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
-	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+	common_init_gl_vertices(globals->inNumberOfObjectsPerSide, &pVertexArray);
+	common_init_gl_texcoords(globals->inNumberOfObjectsPerSide, &pTexCoordArray);
 
 	gettimeofday(&startTime, NULL);
-	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
+	for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++)
 	{
 	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
-		common_gl_draw(inNumberOfObjectsPerSide);
-		common_eglswapbuffers(eglDisplay, eglSurface);
+		common_gl_draw(globals, globals->inNumberOfObjectsPerSide);
+		common_eglswapbuffers(globals, globals->eglDisplay, globals->eglSurface);
 SGXPERF_ENDPROFILEUNIT		
 	}
 
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(5, diffTime2);
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+	common_log(globals, 5, diffTime2);
 
 	glDisableVertexAttribArray(VERTEX_ARRAY);
 	glDisable(GL_BLEND);

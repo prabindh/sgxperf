@@ -16,7 +16,6 @@
 
 #ifdef _ENABLE_TEST8 //GL_IMG_texture_stream
 
-
 #include <sys/mman.h>       // mmap()
 #if defined __linux__
 #define LINUX //needed for imgdefs
@@ -58,14 +57,14 @@ bc_buf_ptr_t buf_pa; //USERPTR buffer
 CMEM_AllocParams cmemParams = { CMEM_POOL, CMEM_NONCACHED, 4096 };
 void* virtualAddress; 
 int physicalAddress;
-int test8_init_texture_streaming_userptr()
+int test8_init_texture_streaming_userptr(struct globalStruct *globals)
 {
     const GLubyte *pszGLExtensions;
     const GLubyte *pszStreamDeviceName;    
 	  int err;  
 	
     //setup CMEM pointers  
-    virtualAddress = CMEM_alloc(inTextureWidth*inTextureHeight*4, &cmemParams);
+    virtualAddress = CMEM_alloc(globals->inTextureWidth*globals->inTextureHeight*4, &cmemParams);
     if(!virtualAddress)                                      
     {
 		  SGXPERF_printf("Error in CMEM_alloc\n");
@@ -84,8 +83,8 @@ int test8_init_texture_streaming_userptr()
         return 3;
     }
     bc_param.count = 1;
-    bc_param.width = inTextureWidth;
-    bc_param.height = inTextureHeight;
+    bc_param.width = globals->inTextureWidth;
+    bc_param.height = globals->inTextureHeight;
     bc_param.fourcc = BC_PIX_FMT_YUYV;           
     bc_param.type = BC_MEMORY_USERPTR;
     SGXPERF_printf("About to BCIOREQ_BUFFERS \n");        
@@ -110,7 +109,7 @@ int test8_init_texture_streaming_userptr()
     SGXPERF_printf("About to BCIOSET_BUFFERADDR \n");            
     buf_pa.index = 0;    
     buf_pa.pa = (int)physicalAddress;    
-    buf_pa.size = inTextureWidth * inTextureHeight * 2;
+    buf_pa.size = globals->inTextureWidth * globals->inTextureHeight * 2;
     if (ioctl(bcfd, BCIOSET_BUFFERPHYADDR, &buf_pa) != 0) 
     {       
         CMEM_free(virtualAddress, &cmemParams);
@@ -153,21 +152,9 @@ int test8_init_texture_streaming_userptr()
     SGXPERF_printf("\nStream Device %s: numBuffers = %d, width = %d, height = %d, format = %x\n",
         pszStreamDeviceName, numBuffers, bufferWidth, bufferHeight, bufferFormat);
 
-#ifdef _ENABLE_LARGE_HEADER_INCLUDE
-		if((inTextureWidth == 160) && (inTextureHeight == 128)) //only for 160x128
-			memcpy(virtualAddress, yukio_160x128yuv, 160*128*2);
-		else if((inTextureWidth == 720) && (inTextureHeight == 480)) //for VGA
 		{
-			FILE*fp = fopen("coastguard_d1_422.yuv","rb");
-			if(!fp) {SGXPERF_printf("Error opening YUV file\n"); return 9;}
-			fread(virtualAddress,720*480*2,1,fp);
-			fclose(fp);
-		}
-		else
-#endif
-		{
-			for (int iii= 0; iii < inTextureHeight; iii++)
-				memset(((char *) virtualAddress + (inTextureWidth*iii*2)) , 0xa8, inTextureWidth*2);
+			for (int iii= 0; iii < globals->inTextureHeight; iii++)
+				memset(((char *) virtualAddress + (globals->inTextureWidth*iii*2)) , 0xa8, globals->inTextureWidth*2);
 		}
 
 	return 0;
@@ -181,7 +168,7 @@ void test8_deinit_texture_streaming_userptr()
 }
 #endif //CMEM
 
-int test8_init_texture_streaming()
+int test8_init_texture_streaming(struct globalStruct *globals)
 {
     const GLubyte *pszGLExtensions;
     const GLubyte *pszStreamDeviceName;
@@ -193,8 +180,8 @@ int test8_init_texture_streaming()
         return 3;
     }
     bc_param.count = 1;
-    bc_param.width = inTextureWidth;
-    bc_param.height = inTextureHeight;
+    bc_param.width = globals->inTextureWidth;
+    bc_param.height = globals->inTextureHeight;
     bc_param.fourcc = BC_PIX_FMT_UYVY;//pixel_fmt = PVRSRV_PIXEL_FORMAT_FOURCC_ORG_UYVY;           
     bc_param.type = BC_MEMORY_MMAP;
     if (ioctl(bcfd, BCIOREQ_BUFFERS, &bc_param) != 0) {
@@ -253,7 +240,7 @@ int test8_init_texture_streaming()
         SGXPERF_printf("phyaddr[%d]: 0x%x\n", idx, ioctl_var.output);
 
         buf_paddr[idx] = (char*)ioctl_var.output;
-        buf_vaddr[idx] = (char *)mmap(NULL, inTextureWidth*inTextureHeight*2,
+        buf_vaddr[idx] = (char *)mmap(NULL, globals->inTextureWidth*globals->inTextureHeight*2,
                           PROT_READ | PROT_WRITE, MAP_SHARED,
                           bcfd, (long)buf_paddr[idx]);
 
@@ -261,40 +248,27 @@ int test8_init_texture_streaming()
             SGXPERF_printf("Error: failed mmap\n");
             return 8;
         }
-
-#ifdef _ENABLE_LARGE_HEADER_INCLUDE
-		if((inTextureWidth == 160) && (inTextureHeight == 128)) //only for 256x256
-			memcpy(buf_vaddr[idx], yukio_160x128yuv, 160*128*2);
-		else if((inTextureWidth == 720) && (inTextureHeight == 480)) //for VGA
 		{
-			FILE*fp = fopen("coastguard_d1_422.yuv","rb");
-			if(!fp) {SGXPERF_printf("Error opening YUV file\n"); return 9;}
-			fread(buf_vaddr[idx],720*480*2,1,fp);
-			fclose(fp);
-		}
-		else
-#endif
-		{
-			for (int iii= 0; iii < inTextureHeight; iii++)
-				memset(((char *) buf_vaddr[idx] + (inTextureWidth*iii*2)) , 0xa8, inTextureWidth*2);
+			for (int iii= 0; iii < globals->inTextureHeight; iii++)
+				memset(((char *) buf_vaddr[idx] + (globals->inTextureWidth*iii*2)) , 0xa8, globals->inTextureWidth*2);
 		}
     }
 
 	return 0;
 }
-void test8_deinit_texture_streaming()
+void test8_deinit_texture_streaming(struct globalStruct *globals)
 {
 	int idx;
     for (idx = 0; idx < MAX_BUFFERS; idx++) {
         if (buf_vaddr[idx] != MAP_FAILED)
-            munmap(buf_vaddr[idx], inTextureWidth*inTextureHeight*2);
+            munmap(buf_vaddr[idx], globals->inTextureWidth*globals->inTextureHeight*2);
     }
     if (bcfd > -1)
         close(bcfd);
 }
 
 /* Texture streaming extension - nonEGLImage */
-void test8()
+void test8(struct globalStruct *globals)
 {
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
@@ -306,10 +280,10 @@ void test8()
 
 #ifdef _ENABLE_TEST8_NO_USERPTR
 	//initialise texture streaming
-	err = test8_init_texture_streaming();
+	err = test8_init_texture_streaming(globals);
 #else //USERPTR
 	//initialise texture streaming - USERPTR
-	err = test8_init_texture_streaming_userptr();
+	err = test8_init_texture_streaming_userptr(globals);
 #endif
 	if(err)
 	{
@@ -319,8 +293,8 @@ void test8()
 	//initialise gl vertices
 	float *pVertexArray, *pTexCoordArray;
 
-	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
-	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+	common_init_gl_vertices(globals->inNumberOfObjectsPerSide, &pVertexArray);
+	common_init_gl_texcoords(globals->inNumberOfObjectsPerSide, &pTexCoordArray);
 
 	//override the texturecoords for this extension only
 	glDisableVertexAttribArray(TEXCOORD_ARRAY);
@@ -331,14 +305,14 @@ void test8()
 
 	gettimeofday(&startTime, NULL);
 	SGXPERF_printf("TEST8: Entering DrawArrays loop\n");
-	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
+	for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++)
 	{
 	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		myglTexBindStreamIMG(0, bufferIndex);
-		img_stream_gl_draw(inNumberOfObjectsPerSide);
-		common_eglswapbuffers (eglDisplay, eglSurface);
+		img_stream_gl_draw(globals->inNumberOfObjectsPerSide);
+		common_eglswapbuffers (globals->eglDisplay, globals->eglSurface);
 SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
@@ -346,15 +320,16 @@ SGXPERF_ENDPROFILEUNIT
 		SGXPERF_ERR_printf("Error in glTexBindStream loop err = %d", err);
 	SGXPERF_printf("Exiting DrawArrays loop\n");
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
 	common_log(8, diffTime2);
 deinit:
 #ifdef _ENABLE_TEST8_NO_USERPTR
-	test8_deinit_texture_streaming();
+	test8_deinit_texture_streaming(globals);
 #else
 	test8_deinit_texture_streaming_userptr();
 #endif
 	common_deinit_gl_vertices(pVertexArray);
 }
 #endif
+
 

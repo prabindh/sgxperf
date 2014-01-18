@@ -26,15 +26,15 @@ PEGLCREATEIMAGEKHR peglCreateImageKHR;
 PEGLDESTROYIMAGE pEGLDestroyImage;
 GLeglImageOES eglImage;
 PFNGLEGLIMAGETARGETTEXTURE2DOES pFnEGLImageTargetTexture2DOES;
-int test6_init_eglimage_khr(NATIVE_PIXMAP_STRUCT *pNativePixmap)
+int test6_init_eglimage_khr(struct globalStruct *globals, NATIVE_PIXMAP_STRUCT *pNativePixmap)
 {
     int err;
 	//if pixmap is passed in, it is to be used as texture input
 	//expected to be initialised earlier
 
 	//Generate and Bind texture
-	glGenTextures(1, &textureId0);
-	glBindTexture(GL_TEXTURE_2D, textureId0);
+	glGenTextures(1, &globals->textureId0);
+	glBindTexture(GL_TEXTURE_2D, globals->textureId0);
 
 
 	//get extension addresses
@@ -46,9 +46,9 @@ int test6_init_eglimage_khr(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 	}
 	//create an egl image
 
-	SGXPERF_printf("textureId0 = %d\n", textureId0); //getting 70001
+	SGXPERF_printf("textureId0 = %d\n", globals->textureId0); //getting 70001
 	eglImage = peglCreateImageKHR(
-							eglDisplay,
+							globals->eglDisplay,
 							EGL_NO_CONTEXT, //eglContext,
 							EGL_NATIVE_PIXMAP_KHR, //EGL_GL_TEXTURE_2D_KHR,
 							pNativePixmap, //(void*)textureId0,//
@@ -89,7 +89,7 @@ void test6_deinit_eglimage_khr(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 }
 
 /* Use EGL_NATIVE_PIXMAP_KHR extension to texture instead of glteximage2d */
-void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
+void test6(structu globalStruct *globals, NATIVE_PIXMAP_STRUCT *pNativePixmap)
 {
 	timeval startTime, endTime, unitStartTime, unitEndTime;
 	unsigned long diffTime2;
@@ -97,11 +97,11 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 	float *pVertexArray, *pTexCoordArray;
 
 	//initialise the vertices
-	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
-	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+	common_init_gl_vertices(globals->inNumberOfObjectsPerSide, &pVertexArray);
+	common_init_gl_texcoords(globals->inNumberOfObjectsPerSide, &pTexCoordArray);
 
 	//initialise the eglimage based texture
-	err = test6_init_eglimage_khr(pNativePixmap);
+	err = test6_init_eglimage_khr(globals, pNativePixmap);
 	if(err)
 	{
 		SGXPERF_ERR_printf("TEST6: Init failed with err = %d\n", err);
@@ -115,7 +115,7 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 		SGXPERF_ERR_printf("Error before gl draw loop err = %x\n", err);
 
 	SGXPERF_printf("Entering DrawArrays loop\n");
-	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
+	for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++)
 	{
 	  SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -129,8 +129,8 @@ void test6(NATIVE_PIXMAP_STRUCT *pNativePixmap)
 		{
 			//memset((void*)nativePixmap.lAddress, 5, nativePixmap.lSizeInBytes);
 		}
-		eglimage_gl_draw(inNumberOfObjectsPerSide);
-		common_eglswapbuffers(eglDisplay, eglSurface);
+		eglimage_gl_draw(globals->inNumberOfObjectsPerSide);
+		common_eglswapbuffers(globals->eglDisplay, globals->eglSurface);
 SGXPERF_ENDPROFILEUNIT		
 	}
 	err = glGetError();
@@ -138,7 +138,7 @@ SGXPERF_ENDPROFILEUNIT
 		SGXPERF_ERR_printf("Error in gl draw loop err = %x\n", err);
 	SGXPERF_printf("Exiting DrawArrays loop\n");
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
 	common_log(6, diffTime2);
 
 deinit:

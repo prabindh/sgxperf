@@ -88,12 +88,12 @@ unsigned int dstBytesPerPixel
 	pBlt1->DstSurfHeight = dstHeightPixels;
 	pBlt1->DstStride = dstStrideBytes;
 	if(dstBytesPerPixel == 4)
-    pBlt1->DstFormat = PVR2D_ARGB8888;
-  else if(dstBytesPerPixel == 2)
-    pBlt1->DstFormat = PVR2D_RGB565;
+    		pBlt1->DstFormat = PVR2D_ARGB8888;
+	else if(dstBytesPerPixel == 2)
+		pBlt1->DstFormat = PVR2D_RGB565;
   //Wrap the destination
 	ePVR2DStatus1 = PVR2DMemWrap(
-                  hPVR2DContext, dstPtr, 0, 
+                  hPVR2DContext1, dstPtr, 0, 
       						(dstBytesPerPixel * dstHeightPixels * dstWidthPixels),
       						NULL,
       						&pDstMemInfo_MemWrap
@@ -121,7 +121,7 @@ unsigned int dstBytesPerPixel
 	ePVR2DStatus1 = PVR2DBlt(hPVR2DContext1, pBlt1);		
  	ePVR2DStatus1 = PVR2DQueryBlitsComplete(hPVR2DContext1, pSrcMemInfo_MemWrap1, 1);
 	SGXPERF_printf("src Blt Complete Query = %d\n", ePVR2DStatus1);
- 	ePVR2DStatus1 = PVR2DQueryBlitsComplete(hPVR2DContext, pDstMemInfo_MemWrap, 1);
+ 	ePVR2DStatus1 = PVR2DQueryBlitsComplete(hPVR2DContext1, pDstMemInfo_MemWrap, 1);
 	SGXPERF_printf("dst Blt Complete Query = %d\n", ePVR2DStatus1);
 	//unwrap again
 	//PVR2DMemFree(hPVR2DContext1, pSrcMemInfo_MemWrap1);
@@ -134,33 +134,33 @@ unsigned int dstBytesPerPixel
   return 0;
 }
 
-void test15()
+void test15(struct globalStruct *globals)
 {
-	timeval startTime, endTime, unitStartTime, unitEndTime;
+	timeval startTime, endTime;
 	unsigned long diffTime2;
 	unsigned int i;
 	//with switching contexts, still drawing to surface1
 	gettimeofday(&startTime, NULL);
 
-	void* outBuffer = malloc(inTextureWidth*inTextureHeight*2); //always to RGB565 mem buffer only
+	void* outBuffer = malloc(globals->inTextureWidth * globals->inTextureHeight*2); //always to RGB565 mem buffer only
 	if(!outBuffer) 
 	{	
 		printf("TEST15 FATAL error - could not allocate output buffer!\n");
 		return;
 	}
 
-	for(i = 0;(i < (unsigned int)numTestIterations)&&(!quitSignal);i ++)	
+	for(i = 0;(i < (unsigned int)globals->numTestIterations)&&(!globals->quitSignal);i ++)	
 	{	
 	  SGXPERF_STARTPROFILEUNIT;	
 		test15_process(
-		    textureData,
+		    globals->textureData,
 		    (void*)outBuffer,
-		    inTextureWidth,
-		    inTextureHeight,
-		    inTextureWidth*2,
-		    inTextureWidth >> 1, //same parameters for output as well
-		    inTextureHeight >> 1,
-		    (inTextureWidth >>1)*2,
+		   globals->inTextureWidth,
+		    globals->inTextureHeight,
+		   globals->inTextureWidth*2,
+		    globals->inTextureWidth >> 1, //same parameters for output as well
+		    globals->inTextureHeight >> 1,
+		    (globals->inTextureWidth >>1)*2,
 		    2,
 		    2
 		    );
@@ -168,8 +168,8 @@ void test15()
 	}
 
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(14, diffTime2);
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+	common_log(globals, 14, diffTime2);
 
 	//Free output buffer
 	if(outBuffer) free(outBuffer);	

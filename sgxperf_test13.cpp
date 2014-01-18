@@ -16,7 +16,7 @@
 #ifdef _ENABLE_TEST13
 #define NUM_LINES_TEST13 10000 //1000 lines test
 /* Draw multiple lines */
-void test13()
+void test13(struct globalStruct *globals)
 {
 	timeval startTime, endTime;
 	unsigned long diffTime2;
@@ -37,16 +37,16 @@ void test13()
 	
 	glClearColor(0.2f, 0.4f, 0.8f, 1.0f); // clear blue
 	gettimeofday(&startTime, NULL);	
-	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
+	for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++)
 	{	
 //		SGXPERF_STARTPROFILEUNIT;	
 		glClear(GL_COLOR_BUFFER_BIT);		
 		glDrawArrays(GL_LINES, 0, NUM_LINES_TEST13);
-		common_eglswapbuffers(eglDisplay, eglSurface);
+		common_eglswapbuffers(globals, globals->eglDisplay, globals->eglSurface);
 //		SGXPERF_ENDPROFILEUNIT;		
 	}
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(13, diffTime2);
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+	common_log(globals, 13, diffTime2);
 }
 #endif

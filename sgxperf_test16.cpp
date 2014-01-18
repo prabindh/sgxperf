@@ -57,22 +57,22 @@ EGLint eglImageAttributes[] = {
 	EGL_NONE
     };
 
-void test16()
+void test16(struct globalStruct *globals)
 {
 	int i, err;
         timeval startTime, endTime;
         unsigned long diffTime2;
 
-	eglImageAttributes[3] = inTextureWidth;
-	eglImageAttributes[5] = inTextureHeight;
-	eglImageAttributes[7] = inTextureWidth * 2;
-	eglImageAttributes[9] = inTextureWidth*inTextureHeight*2;
+	eglImageAttributes[3] = globals->inTextureWidth;
+	eglImageAttributes[5] = globals->inTextureHeight;
+	eglImageAttributes[7] = globals->inTextureWidth * 2;
+	eglImageAttributes[9] = globals->inTextureWidth*globals->inTextureHeight*2;
 
 	peglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
 	pFnEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
 	pEGLDestroyImage = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
 	//Create the eglimage
-	eglImage = peglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI, textureData, eglImageAttributes);
+	eglImage = peglCreateImageKHR(globals->eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI, globals->textureData, eglImageAttributes);
 	if(eglImage == EGL_NO_IMAGE_KHR)
 	{
 		SGXPERF_ERR_printf("EGLImage not created, err = %x\n", eglGetError());
@@ -80,23 +80,23 @@ void test16()
 	}
 	
 	//Create the texture
-	glGenTextures(1, &textureId0);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureId0);
+	glGenTextures(1, &globals->textureId0);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, globals->textureId0);
 	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	//Specify the target
 	pFnEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, eglImage);
 	//Draw loop
         float *pVertexArray, *pTexCoordArray;
-        common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
-        common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+        common_init_gl_vertices(globals->inNumberOfObjectsPerSide, &pVertexArray);
+        common_init_gl_texcoords(globals->inNumberOfObjectsPerSide, &pTexCoordArray);
 
 
        gettimeofday(&startTime, NULL);
-        for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++)
+        for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++)
 	{
-                eglimage_gl_draw(inNumberOfObjectsPerSide);
-                common_eglswapbuffers(eglDisplay, eglSurface);
+                eglimage_gl_draw(globals->inNumberOfObjectsPerSide);
+                common_eglswapbuffers(globals, globals->eglDisplay, globals->eglSurface);
         	err = glGetError();
 	        if(err)
 		{
@@ -109,14 +109,14 @@ void test16()
 		}
 	}
         gettimeofday(&endTime, NULL);
-        diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-        common_log(1, diffTime2);
+        diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+        common_log(globals, 1, diffTime2);
 
 
         common_deinit_gl_vertices(pVertexArray);
         common_deinit_gl_texcoords(pTexCoordArray);
 	
-	pEGLDestroyImage(eglDisplay, eglImage);
+	pEGLDestroyImage(globals->eglDisplay, eglImage);
         SGXPERF_ERR_printf("INFO: finished test16 - running at max fps\n");
 }
 #endif

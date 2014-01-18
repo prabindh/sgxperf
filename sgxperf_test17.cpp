@@ -27,28 +27,28 @@ void gl_fbo_draw(int numObjects)
 }
 
 /* Texturing using glteximage2d */ 
-void _test17(int offscreen)
+void _test17(struct globalStruct *globals, int objPerSide, int offscreen)
 {
 	timeval startTime, endTime;
 	unsigned long diffTime2;
 	float *pVertexArray, *pTexCoordArray;
 
-	common_init_gl_vertices(inNumberOfObjectsPerSide, &pVertexArray);
-	common_init_gl_texcoords(inNumberOfObjectsPerSide, &pTexCoordArray);
+	common_init_gl_vertices(objPerSide, &pVertexArray);
+	common_init_gl_texcoords(objPerSide, &pTexCoordArray);
 
 	gettimeofday(&startTime, NULL);
 
 	GL_CHECK(glClear(GL_COLOR_BUFFER_BIT));
 	//draw first area with texture
-	GL_CHECK(gl_fbo_draw(inNumberOfObjectsPerSide));
+	GL_CHECK(gl_fbo_draw(objPerSide));
 	if(offscreen)
 		glFlush();
 	else
-		common_eglswapbuffers(eglDisplay, eglSurface);
+		common_eglswapbuffers(globals, globals->eglDisplay, globals->eglSurface);
 
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log(17, diffTime2);
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+	common_log(globals, 17, diffTime2);
 
 	common_deinit_gl_vertices(pVertexArray);
 	common_deinit_gl_texcoords(pTexCoordArray);
@@ -56,15 +56,16 @@ void _test17(int offscreen)
 
 #define NUM_FBO 1
 
-void test17()
+void test17(struct globalStruct *globals)
 {
 	int i;
 	GLuint fboId[NUM_FBO];
 	GLuint fboTextureId[NUM_FBO];
 	GLuint regularTextureId;
+	int numObjectsPerSide = globals->inNumberOfObjectsPerSide;
 
 	//sanity checks
-	if(inPixelFormat != SGXPERF_ARGB8888)
+	if(globals->inPixelFormat != SGXPERF_ARGB8888)
 	{
 		SGXPERF_ERR_printf("TEST17 can currently only be run with ARGB888!");
 		exit(-1);
@@ -76,14 +77,14 @@ void test17()
 	//Regular first texture
 	glGenTextures(1, &regularTextureId);
 
-	if(inNumberOfObjectsPerSide > NUM_FBO) inNumberOfObjectsPerSide = NUM_FBO;
+	if(numObjectsPerSide > NUM_FBO) numObjectsPerSide = NUM_FBO;
 
-	for(i = 0;i < inNumberOfObjectsPerSide;i ++)
+	for(i = 0;i < numObjectsPerSide;i ++)
 	{
 		//Bind offscreen texture
 		GL_CHECK(glBindTexture(GL_TEXTURE_2D, 0));
 		GL_CHECK(glBindTexture(GL_TEXTURE_2D, fboTextureId[i]));
-		GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, inTextureWidth, inTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL));
+		GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, globals->inTextureWidth, globals->inTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL));
 		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 
@@ -98,11 +99,11 @@ void test17()
 		//Bind regular texture
 		GL_CHECK(glBindTexture(GL_TEXTURE_2D, 0));
 		GL_CHECK(glBindTexture(GL_TEXTURE_2D, regularTextureId));
-		add_texture(inTextureWidth, inTextureHeight, textureData, inPixelFormat);
+		add_texture(globals->inTextureWidth, globals->inTextureHeight, globals->textureData, globals->inPixelFormat);
 		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 		 //Draw with regular draw calls to FBO
-		GL_CHECK(_test17(1));
+		GL_CHECK(_test17(globals, numObjectsPerSide, 1));
 
 		//Now get back display framebuffer and unbind the FBO
 		GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -119,7 +120,7 @@ void test17()
 		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 		GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 		//draw to display buffer
-		_test17(0);
+		_test17(globals, numObjectsPerSide, 0);
 	}
 err:  
 	glDeleteFramebuffers(NUM_FBO, fboId);

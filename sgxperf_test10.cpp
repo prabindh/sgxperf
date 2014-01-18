@@ -53,9 +53,9 @@ void test10_init()
 	pBlt->DstFormat = eDisplayFormat;
 
 }
-void test10() //Test PVR2D test cases
+void test10(struct globalStruct *globals) //Test PVR2D test cases
 {
-	timeval startTime, endTime, unitStartTime, unitEndTime;
+	timeval startTime, endTime;
 	unsigned long diffTime2;
 	int i; 
 	void* pLocalTexture = NULL;
@@ -63,15 +63,15 @@ void test10() //Test PVR2D test cases
 
 	gettimeofday(&startTime, NULL);
 	SGXPERF_printf("TESTa: Entering DrawArrays loop\n");
-	for(i = 0;(i < numTestIterations)&&(!quitSignal);i ++) //limiting to avoid memwrap issues
+	for(i = 0;(i < globals->numTestIterations)&&(!globals->quitSignal);i ++) //limiting to avoid memwrap issues
 	{
 	  SGXPERF_STARTPROFILEUNIT;	
 		//Test locality of memwrap
-		pLocalTexture = malloc(4 * inTextureWidth * inTextureHeight);
+		pLocalTexture = malloc(4 * globals->inTextureWidth * globals->inTextureHeight);
 		if(!pLocalTexture) {printf("Error malloc, exit\n"); exit(1);}
 		ePVR2DStatus = PVR2DMemWrap
 							(hPVR2DContext, pLocalTexture, 0, 
-							(4 * inTextureWidth * inTextureHeight),
+							(4 * globals->inTextureWidth * globals->inTextureHeight),
 							NULL,
 							&pSrcMemInfo_MemWrap
 							);
@@ -80,16 +80,16 @@ void test10() //Test PVR2D test cases
 			printf("Fatal Error in pvr2dmemwrap, exiting\n");
 			exit(1);
 		}
-		pBlt->DSizeX = inTextureWidth;
-		pBlt->DSizeY = inTextureHeight;
+		pBlt->DSizeX = globals->inTextureWidth;
+		pBlt->DSizeY = globals->inTextureHeight;
 		pBlt->DstX = 0;
 		pBlt->DstY = 0;
 
 		pBlt->pSrcMemInfo = pSrcMemInfo_MemWrap;
-		pBlt->SrcSurfWidth = inTextureWidth;
-		pBlt->SrcSurfHeight = inTextureHeight;
+		pBlt->SrcSurfWidth = globals->inTextureWidth;
+		pBlt->SrcSurfHeight = globals->inTextureHeight;
 		pBlt->SrcFormat = PVR2D_ARGB8888;
-		pBlt->SrcStride = ( ( ((inTextureWidth + 31) & ~31) * 32) + 7) >> 3;
+		pBlt->SrcStride = ( ( ((globals->inTextureWidth + 31) & ~31) * 32) + 7) >> 3;
 		pBlt->SizeX = pBlt->DSizeX;
 		pBlt->SizeY = pBlt->DSizeY;
         pBlt->CopyCode = PVR2DROPcopy;
@@ -103,8 +103,8 @@ void test10() //Test PVR2D test cases
 	}
 	SGXPERF_printf("Exiting Draw loop\n");
 	gettimeofday(&endTime, NULL);
-	diffTime2 = (tv_diff(&startTime, &endTime))/numTestIterations;
-	common_log('a', diffTime2);
+	diffTime2 = (tv_diff(&startTime, &endTime))/globals->numTestIterations;
+	common_log(globals, 'a', diffTime2);
 
 }
 #endif //TEST10
