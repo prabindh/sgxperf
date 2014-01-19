@@ -1,3 +1,19 @@
+/******************************************************************************
+
+Test file for validating throughputs for 2D related operations, using 
+the openGLES and PVR2D APIs
+
+View the README and INSTALL files for usage and build instructions
+
+Latest code and information can be obtained from
+http://github.com/prabindh/sgxperf
+
+XgxPerf (a Qt5 C++ based 2D benchmarking tool) can be obtained from 
+https://github.com/prabindh/xgxperf
+
+Prabindh Sundareson prabu@ti.com
+(c) Texas Instruments 2009-2014
+******************************************************************************/
 #ifndef _ENABLE_SGXPERF_GLES20_VG_H
 #define _ENABLE_SGXPERF_GLES20_VG_H
 
