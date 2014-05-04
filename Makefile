@@ -46,7 +46,13 @@ PLAT_LINK =  $(LIBDIR_FLAGS) -lEGL -lGLESv2 -lm -ldl -lpvr2d
 
 COMMON_INCLUDES=-I$(SGXPERF_SDKDIR)/include/OGLES2 -I$(SGXPERF_SDKDIR)/include/wsegl -I$(SGXPERF_SDKDIR)/include/pvr2d -I$(SGXPERF_SDKDIR)/include/bufferclass_ti -I$(SGXPERF_SDKDIR)/include/OGLES2/GLES2 -I$(SGXPERF_SDKDIR)/include/OGLES2/EGL -I$(SGXPERF_SDKDIR)/GFX_Linux_KM/include4
 
+DRM_INCLUDES=-I$(FILESYSTEMDIR)/usr/include/libdrm
+
 PLAT_CFLAGS += $(COMMON_INCLUDES)
+
+ifeq "$(_ENABLE_DRM)" "1"
+PLAT_CFLAGS += $(DRM_INCLUDES)
+endif
 
 SRCNAME = $(wildcard *.cpp)
 OBJECTS = $(PLAT_OBJPATH)/$(SRCNAME:.cpp=.o)
