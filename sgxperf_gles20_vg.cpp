@@ -206,18 +206,18 @@ int common_eglinit(struct globalStruct* globals, int testID, int surfaceType, NA
 		return 1;
 	}
 	if(surfaceType == SGXPERF_SURFACE_TYPE_WINDOW)
-		globals->eglSurface = eglCreateWindowSurface(globals->eglDisplay, globals->eglConfig, (void*) NULL, NULL);
+		globals->eglSurface = eglCreateWindowSurface(globals->eglDisplay, globals->eglConfig, (EGLNativeWindowType) NULL, NULL);
 	else if(surfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_16)
 	{
 		common_create_native_pixmap(SGXPERF_RGB565, 
 						globals->inTextureWidth, globals->inTextureHeight, pNativePixmapPtr);
-		globals->eglSurface = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, *pNativePixmapPtr, NULL);
+		globals->eglSurface = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, (EGLNativePixmapType)*pNativePixmapPtr, NULL);
 	}
 	else if(surfaceType == SGXPERF_SURFACE_TYPE_PIXMAP_32)
 	{
 		common_create_native_pixmap(SGXPERF_ARGB8888, 
 						globals->inTextureWidth, globals->inTextureHeight, pNativePixmapPtr);
-		globals->eglSurface = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, *pNativePixmapPtr, NULL);
+		globals->eglSurface = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, (EGLNativePixmapType)*pNativePixmapPtr, NULL);
 	}
   	else  
 	    return 999;
@@ -229,7 +229,7 @@ int common_eglinit(struct globalStruct* globals, int testID, int surfaceType, NA
 	{
 		common_create_native_pixmap(SGXPERF_RGB565, 
 						globals->inTextureWidth, globals->inTextureHeight, pNativePixmapPtr);
-		globals->eglSurface2 = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, *pNativePixmapPtr, NULL);
+		globals->eglSurface2 = eglCreatePixmapSurface(globals->eglDisplay, globals->eglConfig, (EGLNativePixmapType)*pNativePixmapPtr, NULL);
 	}  	
 	if (!TestEGLError("eglCreateSurface"))
 		return 1;		
